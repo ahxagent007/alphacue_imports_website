@@ -501,4 +501,6 @@ class OrderItem(models.Model):
 
     @property
     def line_total(self):
+        if self.unit_price is None or self.quantity is None:
+            return 0
         return self.unit_price * self.quantity
