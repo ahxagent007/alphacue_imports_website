@@ -1,0 +1,349 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Analytics{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:1rem;margin-bottom:2rem}
+  .kpi{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);padding:1.1rem 1.25rem;position:relative;overflow:hidden}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .kpi.gold::before{background:linear-gradient(90deg,var(--gold-d),var(--gold))}
+  .kpi.green::before{background:#10B981}
+  .kpi.blue::before{background:#3B82F6}
+  .kpi.purple::before{background:#8B5CF6}
+  .kpi-val{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:#1A1208;line-height:1.1}
+  .kpi-label{font-size:.68rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem}
+  .kpi-sub{font-size:.72rem;color:#9A9188;margin-top:.3rem}
+  .kpi-sub b{color:#5A5450}
+
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+  .chart-card{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);overflow:hidden}
+  .chart-head{padding:.85rem 1.25rem;border-bottom:1px solid #F0EDE8;display:flex;align-items:center;justify-content:space-between}
+  .chart-title{font-size:.78rem;font-weight:700;color:#1A1208;text-transform:uppercase;letter-spacing:.04em}
+  .chart-body{padding:1.25rem}
+
+  .rev-bar{background:#F8F5EE;border-radius:8px;height:20px;overflow:hidden;margin:.5rem 0}
+  .rev-bar-fill{height:100%;border-radius:8px;transition:width .6s}
+
+  .top-table{width:100%;border-collapse:collapse}
+  .top-table th{font-size:.68rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;padding:.65rem 1rem;border-bottom:1px solid #F0EDE8;text-align:left;background:#FAFAF8}
+  .top-table td{padding:.75rem 1rem;border-bottom:1px solid #F0EDE8;font-size:.83rem;color:#1A1A1A;vertical-align:middle}
+  .top-table tr:last-child td{border-bottom:none}
+  .top-table tr:hover td{background:#FAFAF8}
+  .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:.75rem;font-weight:700;flex-shrink:0}
+  .rank-1{background:linear-gradient(135deg,#D4AF37,#F5D060);color:#5A3A00}
+  .rank-2{background:linear-gradient(135deg,#A8A9AD,#D4D5D9);color:#2A2A2A}
+  .rank-3{background:linear-gradient(135deg,#CD7F32,#E8A060);color:#3A1A00}
+  .rank-other{background:#F0EDE8;color:#9A9188}
+
+  .period-tabs{display:flex;gap:.4rem;margin-bottom:1.75rem}
+  .period-tab{padding:.4rem .95rem;border-radius:20px;font-size:.8rem;font-weight:600;border:1px solid;transition:all .15s;text-decoration:none}
+  .period-tab.active{background:var(--gold-d);color:#fff;border-color:var(--gold-d)}
+  .period-tab.inactive{background:#fff;color:#5A5450;border-color:#E8E4DC}
+
+  .wd-pill{display:inline-block;padding:.2rem .6rem;border-radius:10px;font-size:.68rem;font-weight:700;background:rgba(245,158,11,.1);color:#92600A;border:1px solid #D4A017}
+
+  @media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>Affiliate Analytics</h1>
+  <p>Performance overview across all affiliates and the referral programme.</p>
+</div>
+
+<!-- Period selector -->
+<div class="period-tabs">
+  <a href="?period=7"  class="period-tab {% if period == 7  %}active{% else %}inactive{% endif %}">7 Days</a>
+  <a href="?period=30" class="period-tab {% if period == 30 %}active{% else %}inactive{% endif %}">30 Days</a>
+  <a href="?period=90" class="period-tab {% if period == 90 %}active{% else %}inactive{% endif %}">90 Days</a>
+</div>
+
+<!-- KPI cards -->
+<div class="kpi-grid">
+  <div class="kpi gold">
+    <div class="kpi-label">Total Affiliates</div>
+    <div class="kpi-val">{{ stats.total_affiliates }}</div>
+    <div class="kpi-sub"><b>+{{ stats.new_affiliates_30d }}</b> approved in 30 days</div>
+  </div>
+  <div class="kpi gold">
+    <div class="kpi-label">Commission Earned</div>
+    <div class="kpi-val">৳{{ stats.total_commissions|floatformat:0 }}</div>
+    <div class="kpi-sub"><b>৳{{ stats.commissions_30d|floatformat:0 }}</b> in {{ period }} days</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">Orders via Affiliates</div>
+    <div class="kpi-val">{{ stats.total_orders }}</div>
+    <div class="kpi-sub"><b>{{ stats.orders_30d }}</b> in {{ period }} days</div>
+  </div>
+  <div class="kpi blue">
+    <div class="kpi-label">Total Clicks</div>
+    <div class="kpi-val">{{ stats.total_clicks }}</div>
+    <div class="kpi-sub"><b>{{ stats.clicks_30d }}</b> in {{ period }} days</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-label">Pending Payouts</div>
+    <div class="kpi-val">৳{{ stats.pending_payouts|floatformat:0 }}</div>
+    <div class="kpi-sub">Approved, not yet paid</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">Total Paid Out</div>
+    <div class="kpi-val">৳{{ stats.total_paid_out|floatformat:0 }}</div>
+    <div class="kpi-sub">All time withdrawals</div>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="chart-grid">
+
+  <!-- Commission trend -->
+  <div class="chart-card">
+    <div class="chart-head">
+      <div class="chart-title">Commission Trend (৳)</div>
+      <span style="font-size:.72rem;color:#9A9188;">Last {{ period }} days</span>
+    </div>
+    <div class="chart-body">
+      <canvas id="commChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <!-- Click trend -->
+  <div class="chart-card">
+    <div class="chart-head">
+      <div class="chart-title">Click Trend</div>
+      <span style="font-size:.72rem;color:#9A9188;">Last {{ period }} days</span>
+    </div>
+    <div class="chart-body">
+      <canvas id="clickChart" height="140"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- Revenue contribution + commission status -->
+<div class="chart-grid" style="margin-bottom:1.5rem;">
+
+  <!-- Revenue contribution -->
+  <div class="chart-card">
+    <div class="chart-head">
+      <div class="chart-title">Revenue Contribution ({{ period }} days)</div>
+    </div>
+    <div class="chart-body">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem;">
+        <span style="color:#5A5450;">Affiliate Revenue</span>
+        <span style="font-weight:700;color:var(--gold-d);">৳{{ revenue.affiliate_revenue|floatformat:0 }} ({{ revenue.affiliate_pct }}%)</span>
+      </div>
+      <div class="rev-bar">
+        <div class="rev-bar-fill" style="width:{{ revenue.affiliate_pct }}%;background:linear-gradient(90deg,var(--gold-d),var(--gold));"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem;margin-top:.75rem;">
+        <span style="color:#5A5450;">Direct Revenue</span>
+        <span style="font-weight:700;color:#3B82F6;">৳{{ revenue.direct_revenue|floatformat:0 }} ({{ revenue.direct_pct }}%)</span>
+      </div>
+      <div class="rev-bar">
+        <div class="rev-bar-fill" style="width:{{ revenue.direct_pct }}%;background:#3B82F6;"></div>
+      </div>
+      <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid #F0EDE8;display:flex;justify-content:space-between;">
+        <span style="font-size:.82rem;color:#5A5450;font-weight:600;">Total Delivered Revenue</span>
+        <span style="font-family:'Cinzel',serif;font-size:.9rem;font-weight:700;color:#1A1208;">৳{{ revenue.total_revenue|floatformat:0 }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commission status doughnut -->
+  <div class="chart-card">
+    <div class="chart-head">
+      <div class="chart-title">Commission Status Breakdown</div>
+    </div>
+    <div class="chart-body" style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+      <canvas id="statusChart" width="140" height="140" style="flex-shrink:0;max-width:140px;"></canvas>
+      <div style="flex:1;min-width:120px;" id="status-legend"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Top affiliates table -->
+<div class="chart-card" style="margin-bottom:1.5rem;">
+  <div class="chart-head">
+    <div class="chart-title">Top Affiliates — Last {{ period }} Days</div>
+    <span style="font-size:.72rem;color:#9A9188;">Ranked by earnings</span>
+  </div>
+  {% if top_affiliates %}
+  <table class="top-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Affiliate</th>
+        <th>Clicks</th>
+        <th>Orders</th>
+        <th>Conversion</th>
+        <th>Earned (Period)</th>
+        <th>Total Earned</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_affiliates %}
+      <tr>
+        <td>
+          <span class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-other{% endif %}">
+            {{ forloop.counter }}
+          </span>
+        </td>
+        <td>
+          <div style="font-weight:700;color:var(--gold-d);">{{ row.affiliate.referral_code }}</div>
+          <div style="font-size:.75rem;color:#9A9188;">{{ row.affiliate.full_name }}</div>
+        </td>
+        <td style="font-weight:600;">{{ row.period_clicks }}</td>
+        <td style="font-weight:600;">{{ row.period_orders }}</td>
+        <td>
+          <span style="font-weight:700;{% if row.conversion_rate >= 5 %}color:#065F46;{% elif row.conversion_rate >= 2 %}color:#92600A;{% else %}color:#9A9188;{% endif %}">
+            {{ row.conversion_rate }}%
+          </span>
+        </td>
+        <td style="font-weight:700;color:var(--gold-d);">৳{{ row.period_earnings|floatformat:0 }}</td>
+        <td style="color:#5A5450;">৳{{ row.total_earnings|floatformat:0 }}</td>
+        <td>
+          {% if row.affiliate.is_fraud_flagged %}
+            <span style="font-size:.7rem;background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444;padding:.15rem .5rem;border-radius:4px;font-weight:700;">FLAGGED</span>
+          {% else %}
+            <span style="font-size:.7rem;background:rgba(16,185,129,.1);color:#065F46;border:1px solid #10B981;padding:.15rem .5rem;border-radius:4px;font-weight:700;">ACTIVE</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:3rem;color:#9A9188;">
+    <div style="font-size:2rem;margin-bottom:.75rem;">📊</div>
+    <div>No affiliate activity in the selected period.</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Pending withdrawals -->
+{% if pending_withdrawals %}
+<div class="chart-card">
+  <div class="chart-head">
+    <div class="chart-title">⏳ Pending Withdrawal Requests</div>
+    <a href="/admin/affiliate/withdrawalrequest/?status__exact=pending" style="font-size:.75rem;color:var(--gold-d);font-weight:600;">Manage in Admin →</a>
+  </div>
+  <table class="top-table">
+    <thead>
+      <tr>
+        <th>Affiliate</th>
+        <th>Amount</th>
+        <th>Method</th>
+        <th>Account</th>
+        <th>Requested</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for w in pending_withdrawals %}
+      <tr>
+        <td>
+          <div style="font-weight:700;color:var(--gold-d);">{{ w.affiliate.referral_code }}</div>
+          <div style="font-size:.72rem;color:#9A9188;">{{ w.affiliate.full_name }}</div>
+        </td>
+        <td style="font-weight:700;color:#065F46;">৳{{ w.amount|floatformat:0 }}</td>
+        <td style="font-size:.82rem;">{{ w.get_payment_method_display }}</td>
+        <td style="font-family:monospace;font-size:.78rem;color:#5A5450;">{{ w.payment_account }}</td>
+        <td style="font-size:.75rem;color:#9A9188;">{{ w.requested_at|date:"d M Y" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const COMM_TREND   = {{ comm_trend_json|safe }};
+const CLICK_TREND  = {{ click_trend_json|safe }};
+const STATUS_DATA  = {{ status_breakdown_json|safe }};
+
+const CHART_DEFAULTS = {
+  responsive: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9A9188', maxTicksLimit: 10 } },
+    y: { grid: { color: '#F0EDE8' }, ticks: { font: { size: 10 }, color: '#9A9188' }, beginAtZero: true }
+  }
+};
+
+// Commission trend
+new Chart(document.getElementById('commChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: COMM_TREND.labels,
+    datasets: [{
+      data: COMM_TREND.values,
+      borderColor: '#A07830',
+      backgroundColor: 'rgba(160,120,48,0.08)',
+      borderWidth: 2,
+      pointRadius: 2,
+      fill: true,
+      tension: 0.3,
+    }]
+  },
+  options: CHART_DEFAULTS
+});
+
+// Click trend
+new Chart(document.getElementById('clickChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: CLICK_TREND.labels,
+    datasets: [{
+      data: CLICK_TREND.values,
+      backgroundColor: 'rgba(59,130,246,0.2)',
+      borderColor: '#3B82F6',
+      borderWidth: 2,
+      borderRadius: 3,
+    }]
+  },
+  options: CHART_DEFAULTS
+});
+
+// Status doughnut
+const STATUS_COLORS = {
+  pending:  '#F59E0B',
+  approved: '#10B981',
+  paid:     '#3B82F6',
+  rejected: '#EF4444',
+};
+const statusLabels = STATUS_DATA.map(s => s.label);
+const statusVals   = STATUS_DATA.map(s => s.count);
+const statusColors = STATUS_DATA.map(s => STATUS_COLORS[s.status] || '#9A9188');
+
+new Chart(document.getElementById('statusChart').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: statusLabels,
+    datasets: [{ data: statusVals, backgroundColor: statusColors, borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: {
+    responsive: false,
+    cutout: '65%',
+    plugins: { legend: { display: false } },
+  }
+});
+
+// Build legend manually
+const legend = document.getElementById('status-legend');
+STATUS_DATA.forEach((s, i) => {
+  legend.innerHTML += `
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${statusColors[i]};flex-shrink:0;"></span>
+      <span style="font-size:.78rem;color:#5A5450;">${s.label}</span>
+      <span style="font-size:.78rem;font-weight:700;color:#1A1A1A;margin-left:auto;">${s.count}</span>
+    </div>`;
+});
+</script>
+{% endblock %}

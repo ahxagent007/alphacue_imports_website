@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Affiliate Dashboard{% endblock %} — AlphaCue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:#C9A84C; --gold-l:#E2C97E; --gold-d:#A07830; --gold-dim:rgba(201,168,76,0.12);
+      --black:#0A0A0A; --black-s:#141414; --black-c:#1C1C1C; --black-b:#262626; --black-e:#303030;
+      --text:#F0EBE0; --text-m:#9A9188; --text-d:#5A5550;
+      --sidebar-w:240px;
+      --radius:10px; --radius-sm:6px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:#F5F3EF;color:#1A1A1A;font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column}
+    a{text-decoration:none;color:inherit}
+
+    /* ── Top header ── */
+    .dash-header{background:var(--black-s);border-bottom:1px solid var(--black-b);height:60px;display:flex;align-items:center;padding:0 1.5rem;gap:1.5rem;position:sticky;top:0;z-index:100;flex-shrink:0}
+    .dash-brand{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold);white-space:nowrap}
+    .dash-brand span{color:var(--text)}
+    .dash-header-right{margin-left:auto;display:flex;align-items:center;gap:1.25rem}
+    .dash-header-link{font-size:.8rem;color:var(--text-m);transition:color .2s}
+    .dash-header-link:hover{color:var(--gold-l)}
+    .dash-user{display:flex;align-items:center;gap:.6rem;font-size:.82rem;color:var(--text-m)}
+    .dash-avatar{width:30px;height:30px;border-radius:50%;background:var(--gold-dim);border:1px solid var(--gold-d);display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--gold-l);font-weight:700;flex-shrink:0}
+
+    /* ── Layout ── */
+    .dash-body{display:flex;flex:1;min-height:0}
+
+    /* ── Sidebar ── */
+    .sidebar{width:var(--sidebar-w);background:var(--black-s);border-right:1px solid var(--black-b);flex-shrink:0;padding:1.5rem 0;display:flex;flex-direction:column;gap:0}
+    .sidebar-section{padding:0 .75rem;margin-bottom:1.5rem}
+    .sidebar-label{font-size:.65rem;font-weight:700;color:var(--text-d);letter-spacing:.1em;text-transform:uppercase;padding:.4rem .75rem;margin-bottom:.25rem}
+    .sidebar-link{display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;border-radius:var(--radius-sm);font-size:.85rem;font-weight:500;color:var(--text-m);transition:all .15s;cursor:pointer}
+    .sidebar-link:hover{background:var(--black-b);color:var(--text)}
+    .sidebar-link.active{background:var(--gold-dim);color:var(--gold-l);border:1px solid rgba(201,168,76,.2)}
+    .sidebar-link .icon{font-size:1rem;width:18px;text-align:center;flex-shrink:0}
+    .sidebar-link .badge{margin-left:auto;background:var(--gold-d);color:var(--black);font-size:.65rem;font-weight:700;padding:.1rem .45rem;border-radius:10px}
+
+    /* ── Referral code mini widget in sidebar ── */
+    .sidebar-ref{margin:0 .75rem 1.5rem;background:var(--black-c);border:1px solid var(--gold-d);border-radius:var(--radius-sm);padding:.85rem}
+    .sidebar-ref-label{font-size:.65rem;font-weight:700;color:var(--gold-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem}
+    .sidebar-ref-code{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold-l);letter-spacing:.12em;word-break:break-all}
+    .sidebar-ref-copy{margin-top:.5rem;width:100%;padding:.4rem;background:transparent;border:1px solid var(--black-e);border-radius:4px;color:var(--text-m);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
+    .sidebar-ref-copy:hover{border-color:var(--gold-d);color:var(--gold-l)}
+
+    /* ── Main content ── */
+    .dash-main{flex:1;overflow-y:auto;padding:2rem 1.75rem}
+
+    /* ── Page heading ── */
+    .page-head{margin-bottom:1.75rem}
+    .page-head h1{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;color:#1A1208}
+    .page-head p{font-size:.85rem;color:#5A5450;margin-top:.25rem}
+
+    /* ── Stat cards ── */
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:1.75rem}
+    .stat-card{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);padding:1.1rem 1.25rem;position:relative;overflow:hidden}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-d),var(--gold))}
+    .stat-label{font-size:.7rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem}
+    .stat-val{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:#1A1208;line-height:1}
+    .stat-sub{font-size:.72rem;color:#9A9188;margin-top:.35rem}
+    .stat-card.gold .stat-val{color:var(--gold-d)}
+    .stat-card.green .stat-val{color:#065F46}
+
+    /* ── Section card ── */
+    .section-card{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem}
+    .section-card-head{padding:.85rem 1.25rem;border-bottom:1px solid #F0EDE8;display:flex;align-items:center;justify-content:space-between}
+    .section-card-title{font-size:.8rem;font-weight:700;color:#1A1208;letter-spacing:.04em;text-transform:uppercase}
+    .section-card-link{font-size:.75rem;color:var(--gold-d);font-weight:600;transition:color .2s}
+    .section-card-link:hover{color:var(--gold)}
+
+    /* ── Commission table ── */
+    .comm-table{width:100%;border-collapse:collapse}
+    .comm-table th{font-size:.68rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;padding:.6rem 1.25rem;border-bottom:1px solid #F0EDE8;text-align:left}
+    .comm-table td{padding:.75rem 1.25rem;border-bottom:1px solid #F0EDE8;font-size:.83rem;color:#1A1A1A;vertical-align:middle}
+    .comm-table tr:last-child td{border-bottom:none}
+    .comm-table tr:hover td{background:#FAFAF8}
+    .pill{display:inline-block;padding:.2rem .65rem;border-radius:10px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .pill-pending {background:rgba(245,158,11,.1);color:#92600A;border:1px solid #D4A017}
+    .pill-approved{background:rgba(16,185,129,.1);color:#065F46;border:1px solid #10B981}
+    .pill-paid    {background:rgba(59,130,246,.1);color:#1D4ED8;border:1px solid #3B82F6}
+    .pill-rejected{background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444}
+
+    /* ── Alerts ── */
+    .alert{padding:.85rem 1.1rem;border-radius:var(--radius-sm);font-size:.875rem;margin-bottom:1.25rem;border-left:3px solid;display:flex;align-items:flex-start;gap:.6rem}
+    .alert-success{background:rgba(46,125,82,.08);border-color:#2E7D52;color:#1A6640}
+    .alert-warning{background:rgba(201,168,76,.08);border-color:var(--gold-d);color:#7A5C1A}
+    .alert-danger {background:rgba(139,32,32,.07);border-color:#8B2020;color:#8B2020}
+
+    /* ── Responsive ── */
+    @media(max-width:768px){
+      .sidebar{display:none}
+      .dash-main{padding:1.25rem 1rem}
+      .stat-grid{grid-template-columns:repeat(2,1fr)}
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Top header -->
+<header class="dash-header">
+  <a href="{% url 'store:homepage' %}" class="dash-brand">AlphaCue <span>Imports</span></a>
+  <div class="dash-header-right">
+    <a href="{% url 'store:homepage' %}" class="dash-header-link">← Store</a>
+    <div class="dash-user">
+      <div class="dash-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+      <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+    </div>
+    <form method="post" action="/accounts/logout/" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="dash-header-link" style="background:none;border:none;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:500;padding:0;">Logout</button>
+    </form>
+  </div>
+</header>
+
+<div class="dash-body">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+
+    <!-- Referral code widget -->
+    {% if affiliate %}
+    <div class="sidebar-ref">
+      <div class="sidebar-ref-label">Your Referral Code</div>
+      <div class="sidebar-ref-code" id="sb-code">{{ affiliate.referral_code }}</div>
+      <button class="sidebar-ref-copy" onclick="copySidebarRef()">Copy Link</button>
+    </div>
+    {% endif %}
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Dashboard</div>
+      <a href="{% url 'affiliate:dashboard' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <span class="icon">📊</span> Overview
+      </a>
+      <a href="{% url 'affiliate:commission_history' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'commission_history' %}active{% endif %}">
+        <span class="icon">💰</span> Commissions
+      </a>
+      <a href="{% url 'affiliate:click_history' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'click_history' %}active{% endif %}">
+        <span class="icon">🖱️</span> Clicks
+      </a>
+      <a href="{% url 'affiliate:withdrawal_request' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'withdrawal_request' %}active{% endif %}">
+        <span class="icon">💳</span> Withdraw
+        {% if affiliate and affiliate.withdrawal_balance > 0 %}
+        <span class="badge">৳{{ affiliate.withdrawal_balance|floatformat:0 }}</span>
+        {% endif %}
+      </a>
+      <a href="{% url 'affiliate:withdrawal_history' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'withdrawal_history' %}active{% endif %}">
+        <span class="icon">🧾</span> Withdrawals
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      {% if request.user.is_staff %}
+      <div class="sidebar-label">Staff Tools</div>
+      <a href="{% url 'affiliate:analytics_dashboard' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}">
+        <span class="icon">📈</span> Analytics
+      </a>
+      <a href="{% url 'affiliate:fraud_dashboard' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'fraud_dashboard' %}active{% endif %}">
+        <span class="icon">🛡️</span> Fraud Management
+      </a>
+      {% endif %}
+
+      <div class="sidebar-label">Account</div>
+      <a href="{% url 'affiliate:application_status' %}" class="sidebar-link">
+        <span class="icon">⚙️</span> My Profile
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main -->
+  <main class="dash-main">
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'warning' }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+  </main>
+</div>
+
+<script>
+function copySidebarRef() {
+  const code = document.getElementById('sb-code').textContent.trim();
+  const url  = window.location.origin + '/ref/' + code + '/';
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector('.sidebar-ref-copy');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

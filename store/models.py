@@ -465,11 +465,11 @@ class Order(models.Model):
         return self.delivery_zone == self.ZONE_INSIDE
 
     def trigger_commission(self):
-        """Call after status changes to delivered."""
+        """Call after status changes to delivered. Returns Commission or None."""
         if not self.affiliate_code:
-            return
+            return None
         from affiliate.services import trigger_commission_on_delivery
-        trigger_commission_on_delivery(
+        return trigger_commission_on_delivery(
             order_id       = self.pk,
             order_total    = self.grand_total,
             affiliate_code = self.affiliate_code,

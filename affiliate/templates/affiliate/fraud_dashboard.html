@@ -1,0 +1,199 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Fraud Management{% endblock %}
+
+{% block extra_head %}
+<style>
+  .fraud-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;margin-bottom:1.75rem}
+  .fraud-stat{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);padding:1rem 1.25rem;position:relative;overflow:hidden}
+  .fraud-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#EF4444}
+  .fraud-stat.warn::before{background:#F59E0B}
+  .fraud-stat.ok::before{background:#10B981}
+  .fraud-stat-num{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:#1A1208;line-height:1}
+  .fraud-stat-label{font-size:.7rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.07em;margin-top:.35rem}
+  .filter-bar{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);padding:.9rem 1.25rem;margin-bottom:1.25rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+  .filter-input{background:#FAFAF8;border:1px solid #E8E4DC;border-radius:6px;color:#1A1A1A;font-family:'Inter',sans-serif;font-size:.83rem;padding:.45rem .75rem;outline:none}
+  .filter-select{background:#FAFAF8;border:1px solid #E8E4DC;border-radius:6px;color:#1A1A1A;font-family:'Inter',sans-serif;font-size:.83rem;padding:.45rem .75rem;outline:none}
+  .flag-table{width:100%;border-collapse:collapse}
+  .flag-table th{font-size:.68rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;padding:.6rem 1rem;border-bottom:1px solid #F0EDE8;text-align:left;background:#FAFAF8}
+  .flag-table td{padding:.75rem 1rem;border-bottom:1px solid #F0EDE8;font-size:.83rem;color:#1A1A1A;vertical-align:top}
+  .flag-table tr:last-child td{border-bottom:none}
+  .flag-table tr:hover td{background:#FAFAF8}
+  .reason-pill{display:inline-block;padding:.2rem .65rem;border-radius:10px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .r-self_referral     {background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444}
+  .r-ip_abuse          {background:rgba(245,158,11,.1);color:#92600A;border:1px solid #D4A017}
+  .r-duplicate_commission{background:rgba(139,92,246,.1);color:#6D28D9;border:1px solid #8B5CF6}
+  .r-suspicious_pattern{background:rgba(234,88,12,.1);color:#9A3412;border:1px solid #EA580C}
+  .r-manual            {background:rgba(100,116,139,.1);color:#334155;border:1px solid #94A3B8}
+  .resolve-btn{background:transparent;border:1px solid #10B981;color:#065F46;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+  .resolve-btn:hover{background:#10B981;color:#fff}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>Fraud Management</h1>
+  <p>Review fraud flags, suspicious activity, and manage affiliate trust status.</p>
+</div>
+
+<!-- Stats -->
+<div class="fraud-stat-grid">
+  <div class="fraud-stat">
+    <div class="fraud-stat-num" style="color:#991B1B;">{{ stats.open_flags }}</div>
+    <div class="fraud-stat-label">Open Flags</div>
+  </div>
+  <div class="fraud-stat warn">
+    <div class="fraud-stat-num" style="color:#92600A;">{{ stats.flagged_affiliates }}</div>
+    <div class="fraud-stat-label">Flagged Affiliates</div>
+  </div>
+  <div class="fraud-stat warn">
+    <div class="fraud-stat-num" style="color:#6D28D9;">{{ stats.suspected_commissions }}</div>
+    <div class="fraud-stat-label">Suspected Commissions</div>
+  </div>
+  <div class="fraud-stat ok">
+    <div class="fraud-stat-num" style="color:#065F46;">{{ stats.total_flags }}</div>
+    <div class="fraud-stat-label">Total All Time</div>
+  </div>
+</div>
+
+<!-- Reason breakdown -->
+{% if stats.flags_by_reason %}
+<div class="section-card" style="margin-bottom:1.5rem;">
+  <div class="section-card-head">
+    <div class="section-card-title">Open Flags by Reason</div>
+  </div>
+  <div style="padding:.75rem 1.25rem;display:flex;gap:.6rem;flex-wrap:wrap;">
+    {% for row in stats.flags_by_reason %}
+    <span class="reason-pill r-{{ row.reason }}">{{ row.reason|title|cut:"_" }} ({{ row.count }})</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Filter bar -->
+<form method="get" class="filter-bar">
+  <input type="text" name="q" value="{{ search }}" class="filter-input" placeholder="Search affiliate code or details…" style="min-width:220px;">
+  <select name="reason" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Reasons</option>
+    {% for val, label in reason_choices %}
+    <option value="{{ val }}" {% if reason_filter == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:#5A5450;cursor:pointer;">
+    <input type="checkbox" name="resolved" value="1" {% if show_resolved %}checked{% endif %} onchange="this.form.submit()">
+    Show resolved
+  </label>
+  <button type="submit" style="padding:.45rem 1rem;background:var(--gold-d);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Filter</button>
+  <a href="{% url 'affiliate:fraud_dashboard' %}" style="font-size:.8rem;color:#9A9188;align-self:center;">Clear</a>
+</form>
+
+<!-- Flags table -->
+<div class="section-card">
+  {% if page_obj %}
+  <table class="flag-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Affiliate</th>
+        <th>Reason</th>
+        <th>Details</th>
+        <th>Order #</th>
+        <th>IP</th>
+        <th>Flagged</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for flag in page_obj %}
+      <tr>
+        <td style="color:#9A9188;font-size:.75rem;">{{ flag.pk }}</td>
+        <td>
+          <div style="font-weight:700;font-size:.83rem;color:var(--gold-d);">{{ flag.affiliate.referral_code }}</div>
+          <div style="font-size:.72rem;color:#9A9188;">{{ flag.affiliate.full_name }}</div>
+          {% if flag.affiliate.is_fraud_flagged %}
+          <span style="font-size:.65rem;background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444;padding:.1rem .4rem;border-radius:4px;margin-top:.2rem;display:inline-block;">FLAGGED</span>
+          {% endif %}
+        </td>
+        <td><span class="reason-pill r-{{ flag.reason }}">{{ flag.get_reason_display }}</span></td>
+        <td style="font-size:.78rem;color:#5A5450;max-width:220px;">{{ flag.details }}</td>
+        <td style="font-size:.78rem;color:#5A5450;">
+          {% if flag.order_id %}#{{ flag.order_id }}{% else %}—{% endif %}
+        </td>
+        <td style="font-size:.75rem;color:#9A9188;font-family:monospace;">
+          {{ flag.ip_address|default:"—" }}
+        </td>
+        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ flag.flagged_at|date:"d M Y" }}</td>
+        <td>
+          {% if flag.is_resolved %}
+            <span style="font-size:.72rem;color:#065F46;font-weight:700;">✓ Resolved</span>
+            <div style="font-size:.68rem;color:#9A9188;">by {{ flag.resolved_by.username|default:"—" }}</div>
+          {% else %}
+            <span style="font-size:.72rem;color:#991B1B;font-weight:700;">⚠ Open</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if not flag.is_resolved %}
+          <form method="post" action="{% url 'affiliate:resolve_flag' flag.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="resolve-btn" onclick="return confirm('Resolve this flag?')">
+              Resolve
+            </button>
+          </form>
+          {% endif %}
+          {% if not flag.affiliate.is_fraud_flagged %}
+          <form method="post" action="{% url 'affiliate:flag_affiliate' flag.affiliate.pk %}" style="display:inline;margin-left:.3rem;">
+            {% csrf_token %}
+            <input type="hidden" name="details" value="Flagged via fraud dashboard review">
+            <button type="submit" style="background:transparent;border:1px solid #EF4444;color:#991B1B;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;font-family:'Inter',sans-serif;" onclick="return confirm('Flag this affiliate account?')">
+              Flag
+            </button>
+          </form>
+          {% else %}
+          <form method="post" action="{% url 'affiliate:clear_affiliate' flag.affiliate.pk %}" style="display:inline;margin-left:.3rem;">
+            {% csrf_token %}
+            <button type="submit" style="background:transparent;border:1px solid #10B981;color:#065F46;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;font-family:'Inter',sans-serif;" onclick="return confirm('Clear fraud flag for this affiliate?')">
+              Clear
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" style="text-align:center;padding:3rem;color:#9A9188;">
+          <div style="font-size:2rem;margin-bottom:.75rem;">🛡️</div>
+          No fraud flags found.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;flex-wrap:wrap;">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}&reason={{ reason_filter }}&q={{ search }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">← Prev</a>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if page_obj.number == num %}
+        <span style="padding:.4rem .8rem;border:1px solid var(--gold-d);border-radius:6px;font-size:.8rem;background:var(--gold-d);color:#fff;">{{ num }}</span>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <a href="?page={{ num }}&reason={{ reason_filter }}&q={{ search }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}&reason={{ reason_filter }}&q={{ search }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="text-align:center;padding:4rem;color:#9A9188;">
+    <div style="font-size:3rem;margin-bottom:1rem;">🛡️</div>
+    <div>No fraud flags found.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

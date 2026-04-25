@@ -1,0 +1,125 @@
+{% extends "store/base_store.html" %}
+{% block title %}{% if query %}{{ query }} — Search Results{% else %}Search{% endif %} — AlphaCue Imports{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <!-- Search bar (large, prominent) -->
+  <form method="get" action="{% url 'store:search' %}" style="margin-bottom:2rem;">
+    <div style="display:flex;gap:.75rem;max-width:680px;margin:0 auto;">
+      <div style="flex:1;position:relative;">
+        <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1.1rem;color:#9A9188;">🔍</span>
+        <input
+          type="text"
+          name="q"
+          value="{{ query }}"
+          placeholder="Search products, categories, SKU..."
+          autofocus
+          style="width:100%;background:#FAFAF8;border:2px solid {% if query %}var(--gold-d){% else %}#E8E4DC{% endif %};border-radius:10px;color:#1A1A1A;font-family:'Inter',sans-serif;font-size:1rem;padding:.8rem 1rem .8rem 2.75rem;outline:none;transition:border-color .2s;"
+          onfocus="this.style.borderColor='var(--gold-d)'"
+          onblur="this.style.borderColor='{% if query %}var(--gold-d){% else %}#E8E4DC{% endif %}'"
+        >
+      </div>
+      <button type="submit" class="btn btn-gold" style="padding:.8rem 1.75rem;font-size:.95rem;flex-shrink:0;">
+        Search
+      </button>
+    </div>
+  </form>
+
+  {% if query %}
+
+  <!-- Results header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
+    <div>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.25rem;font-weight:700;color:#1A1208;">
+        Search results for <span style="color:var(--gold-d);">"{{ query }}"</span>
+      </h1>
+      <div style="font-size:.82rem;color:var(--page-text-d);margin-top:.25rem;">
+        {% if total_count %}
+          {{ total_count }} product{{ total_count|pluralize }} found
+        {% else %}
+          No products found
+        {% endif %}
+      </div>
+    </div>
+
+    {% if total_count %}
+    <!-- Sort -->
+    <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+      <span style="font-size:.8rem;color:var(--page-text-m);">Sort:</span>
+      {% for val, label in sort_options %}
+      <a href="?q={{ query }}&sort={{ val }}"
+         style="padding:.3rem .8rem;border-radius:20px;font-size:.78rem;font-weight:600;border:1px solid;transition:all .2s;
+         {% if current_sort == val %}background:var(--gold-d);color:#fff;border-color:var(--gold-d){% else %}background:#fff;color:#5A5450;border-color:#E8E4DC{% endif %}">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if products %}
+    <div class="product-grid">
+      {% for product in products %}
+        {% include "store/partials/product_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <!-- No results -->
+    <div style="text-align:center;padding:5rem 2rem;max-width:500px;margin:0 auto;">
+      <div style="font-size:4rem;margin-bottom:1.25rem;">🔍</div>
+      <h2 style="font-family:'Cinzel',serif;font-size:1.2rem;color:#1A1208;margin-bottom:.6rem;">
+        No results for "{{ query }}"
+      </h2>
+      <p style="color:var(--page-text-m);font-size:.9rem;margin-bottom:1.75rem;line-height:1.7;">
+        Try checking your spelling, using fewer words, or browsing by category.
+      </p>
+      <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+        <a href="{% url 'store:product_list' %}" class="btn btn-gold">Browse All Products</a>
+        <a href="{% url 'store:homepage' %}" class="btn btn-ghost">Go to Homepage</a>
+      </div>
+
+      <!-- Suggested categories -->
+      {% if categories %}
+      <div style="margin-top:2.5rem;">
+        <div style="font-size:.75rem;font-weight:700;color:var(--page-text-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;">Browse by Category</div>
+        <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;">
+          {% for cat in categories %}
+          <a href="{% url 'store:category_detail' cat.slug %}"
+             style="padding:.4rem 1rem;background:#F8F5EE;border:1px solid #E8E4DC;border-radius:20px;font-size:.82rem;color:#5A5450;transition:all .2s;"
+             onmouseover="this.style.borderColor='var(--gold-d)';this.style.color='var(--gold-d)'"
+             onmouseout="this.style.borderColor='#E8E4DC';this.style.color='#5A5450'">
+            {{ cat.name }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% else %}
+  <!-- Empty state — no query yet -->
+  <div style="text-align:center;padding:4rem 2rem;">
+    <div style="font-size:3.5rem;margin-bottom:1rem;">🛍️</div>
+    <h2 style="font-family:'Cinzel',serif;font-size:1.2rem;color:#1A1208;margin-bottom:.5rem;">What are you looking for?</h2>
+    <p style="color:var(--page-text-m);font-size:.9rem;margin-bottom:2rem;">Search by product name, category, or SKU.</p>
+
+    {% if categories %}
+    <div style="font-size:.75rem;font-weight:700;color:var(--page-text-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;">Popular Categories</div>
+    <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;">
+      {% for cat in categories %}
+      <a href="{% url 'store:category_detail' cat.slug %}"
+         style="padding:.45rem 1.1rem;background:#F8F5EE;border:1px solid #E8E4DC;border-radius:20px;font-size:.875rem;color:#5A5450;transition:all .2s;"
+         onmouseover="this.style.borderColor='var(--gold-d)';this.style.color='var(--gold-d)'"
+         onmouseout="this.style.borderColor='#E8E4DC';this.style.color='#5A5450'">
+        {{ cat.name }}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

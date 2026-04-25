@@ -144,23 +144,29 @@
   <div class="nav-inner">
     <a href="{% url 'store:homepage' %}" class="nav-brand">AlphaCue <span>Imports</span></a>
 
-    <div class="nav-search">
+    <form class="nav-search" method="get" action="{% url 'store:search' %}" role="search">
       <span class="nav-search-icon">🔍</span>
-      <input type="text" placeholder="Search products...">
-    </div>
+      <input type="text" name="q" placeholder="Search products..."
+             value="{% if request.resolver_match.url_name == 'search' %}{{ request.GET.q|default:'' }}{% endif %}"
+             autocomplete="off">
+    </form>
 
     <div class="nav-actions">
       <a href="{% url 'store:order_track' %}" class="nav-link">Track Order</a>
       {% if user.is_authenticated %}
         {% if user.affiliate_profile.status == 'approved' %}
-          <a href="{% url 'affiliate:application_status' %}" class="nav-link">My Affiliate</a>
+          <a href="{% url 'affiliate:dashboard' %}" class="nav-link" style="color:var(--gold-l);">Affiliate Dashboard</a>
         {% else %}
           <a href="{% url 'affiliate:affiliate_apply' %}" class="nav-link">Earn with Us</a>
         {% endif %}
-        <a href="/accounts/logout/" class="nav-link">Logout</a>
+        <form method="post" action="/accounts/logout/" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:500;padding:0;">Logout</button>
+        </form>
         {% if user.is_staff %}<a href="{% url 'store:manage_order_list' %}" class="nav-link" style="color:var(--gold-l);">Manage Orders</a>{% endif %}
       {% else %}
         <a href="/accounts/login/" class="nav-link">Login</a>
+        <a href="{% url 'affiliate:register' %}" class="nav-link">Register</a>
         <a href="{% url 'affiliate:affiliate_apply' %}" class="nav-link" style="color:var(--gold-l)">Earn with Us</a>
       {% endif %}
 

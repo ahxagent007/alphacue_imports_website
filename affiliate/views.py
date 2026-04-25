@@ -62,11 +62,17 @@ def referral_status(request):
 
 # ─── M3: Registration & Approval ────────────────────────────────────────────
 
-@login_required
 def affiliate_apply(request):
-    if hasattr(request.user, 'affiliate_profile'):
+    # Redirect already-applied users to their status page
+    if request.user.is_authenticated and hasattr(request.user, 'affiliate_profile'):
         return redirect('affiliate:application_status')
+
     if request.method == 'POST':
+        # Must be logged in to submit
+        if not request.user.is_authenticated:
+            messages.warning(request, 'Please log in or create an account to apply as an affiliate.')
+            return redirect(f"/accounts/login/?next={request.path}")
+
         form = AffiliateApplicationForm(request.POST)
         if form.is_valid():
             profile = form.save(commit=False)
@@ -80,10 +86,15 @@ def affiliate_apply(request):
             return redirect('affiliate:application_status')
     else:
         initial = {}
-        if request.user.get_full_name():
-            initial['full_name'] = request.user.get_full_name()
+        if request.user.is_authenticated:
+            if request.user.get_full_name():
+                initial['full_name'] = request.user.get_full_name()
         form = AffiliateApplicationForm(initial=initial)
-    return render(request, 'affiliate/apply.html', {'form': form})
+
+    return render(request, 'affiliate/apply.html', {
+        'form': form,
+        'user_logged_in': request.user.is_authenticated,
+    })
 
 
 @login_required

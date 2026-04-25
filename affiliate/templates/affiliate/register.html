@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Account — AlphaCue Imports</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:#C9A84C; --gold-l:#E2C97E; --gold-d:#A07830;
+      --black:#0A0A0A; --black-s:#141414; --black-c:#1C1C1C;
+      --black-b:#262626; --black-e:#303030;
+      --text:#F0EBE0; --text-m:#9A9188; --text-d:#5A5550;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--black);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .register-box {
+      background: var(--black-c);
+      border: 1px solid var(--black-b);
+      border-radius: 16px;
+      padding: 2.25rem;
+      width: 100%;
+      max-width: 460px;
+    }
+    .brand {
+      font-family: 'Cinzel', serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 0.2rem;
+    }
+    .brand span { color: var(--text); }
+    .subtitle { text-align: center; color: var(--text-m); font-size: .875rem; margin-bottom: 1.75rem; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+    .form-group { margin-bottom: 1.1rem; }
+    .form-label {
+      display: block; font-size: .75rem; font-weight: 700;
+      color: var(--gold-l); letter-spacing: .06em;
+      text-transform: uppercase; margin-bottom: .4rem;
+    }
+    .form-control {
+      width: 100%; background: var(--black-s);
+      border: 1px solid var(--black-e); border-radius: 8px;
+      color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: .9rem; padding: .65rem .9rem; outline: none;
+      transition: border-color .2s;
+    }
+    .form-control:focus { border-color: var(--gold-d); box-shadow: 0 0 0 3px rgba(201,168,76,.1); }
+    .form-control::placeholder { color: var(--text-d); }
+    .invalid-feedback { font-size: .75rem; color: #E07070; margin-top: .25rem; display: block; }
+    .field-error .form-control { border-color: #8B2020; }
+
+    .error-box {
+      background: rgba(139,32,32,.15); border-left: 3px solid #8B2020;
+      color: #E07070; padding: .75rem 1rem; border-radius: 6px;
+      font-size: .875rem; margin-bottom: 1.25rem;
+    }
+    .btn-register {
+      display: block; width: 100%; padding: .875rem;
+      background: linear-gradient(135deg, var(--gold-d), var(--gold));
+      color: var(--black); font-family: 'Inter', sans-serif;
+      font-size: .95rem; font-weight: 700; border: none;
+      border-radius: 8px; cursor: pointer; letter-spacing: .02em;
+      margin-top: .25rem; transition: all .2s;
+    }
+    .btn-register:hover { background: linear-gradient(135deg, var(--gold), var(--gold-l)); }
+    .divider { height: 1px; background: var(--black-b); margin: 1.5rem 0; }
+    .footer-links { text-align: center; font-size: .82rem; color: var(--text-m); }
+    .footer-links a { color: var(--gold-l); text-decoration: none; }
+    .footer-links a:hover { color: var(--gold); }
+    .help-text { font-size: .72rem; color: var(--text-d); margin-top: .25rem; }
+
+    @media(max-width: 400px) { .form-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div class="register-box">
+  <div class="brand">AlphaCue <span>Imports</span></div>
+  <div class="subtitle">Create your free account</div>
+
+  {% if form.non_field_errors %}
+    <div class="error-box">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+    <!-- Name row -->
+    <div class="form-grid">
+      <div class="form-group {% if form.first_name.errors %}field-error{% endif %}">
+        <label class="form-label">First Name *</label>
+        {{ form.first_name }}
+        {% for err in form.first_name.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+      <div class="form-group {% if form.last_name.errors %}field-error{% endif %}">
+        <label class="form-label">Last Name *</label>
+        {{ form.last_name }}
+        {% for err in form.last_name.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Username -->
+    <div class="form-group {% if form.username.errors %}field-error{% endif %}">
+      <label class="form-label">Username *</label>
+      {{ form.username }}
+      <div class="help-text">Letters, numbers and @/./+/-/_ only.</div>
+      {% for err in form.username.errors %}
+        <span class="invalid-feedback">{{ err }}</span>
+      {% endfor %}
+    </div>
+
+    <!-- Email -->
+    <div class="form-group {% if form.email.errors %}field-error{% endif %}">
+      <label class="form-label">Email Address</label>
+      {{ form.email }}
+      {% for err in form.email.errors %}
+        <span class="invalid-feedback">{{ err }}</span>
+      {% endfor %}
+    </div>
+
+    <!-- Password row -->
+    <div class="form-grid">
+      <div class="form-group {% if form.password1.errors %}field-error{% endif %}">
+        <label class="form-label">Password *</label>
+        {{ form.password1 }}
+        {% for err in form.password1.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+      <div class="form-group {% if form.password2.errors %}field-error{% endif %}">
+        <label class="form-label">Confirm *</label>
+        {{ form.password2 }}
+        {% for err in form.password2.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button type="submit" class="btn-register">Create Account</button>
+  </form>
+
+  <div class="divider"></div>
+  <div class="footer-links">
+    Already have an account? <a href="/accounts/login/">Sign In</a>
+  </div>
+</div>
+
+</body>
+</html>

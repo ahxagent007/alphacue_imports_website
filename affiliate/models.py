@@ -114,6 +114,11 @@ class CommissionSetting(models.Model):
     ]
 
     name = models.CharField(max_length=100)
+    # Optional product link — if set, this rate applies only to that product
+    product_id = models.PositiveIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="Leave blank for a global/default rate. Set to a Product ID for per-product rate."
+    )
     commission_type = models.CharField(
         max_length=15, choices=COMMISSION_TYPE_CHOICES, default=COMMISSION_PERCENTAGE
     )
@@ -140,7 +145,17 @@ class CommissionSetting(models.Model):
 
     @classmethod
     def get_default(cls):
-        return cls.objects.filter(is_default=True, is_active=True).first()
+        return cls.objects.filter(is_default=True, is_active=True, product_id__isnull=True).first()
+
+    @classmethod
+    def get_for_product(cls, product_id):
+        """Return product-specific setting if exists, else fall back to default."""
+        specific = cls.objects.filter(
+            product_id=product_id, is_active=True
+        ).first()
+        if specific:
+            return specific
+        return cls.get_default()
 
     def calculate_commission(self, order_amount):
         if self.commission_type == self.COMMISSION_PERCENTAGE:
@@ -366,3 +381,44 @@ class FraudFlag(models.Model):
 
     def __str__(self):
         return f"FraudFlag #{self.pk} — {self.affiliate.referral_code} — {self.get_reason_display()}"
+
+
+class ProductCommissionSetting(models.Model):
+    """
+    Per-product commission override.
+    If a product has this, it takes priority over CommissionSetting default.
+    product_id references store.Product.
+    """
+    product_id = models.PositiveIntegerField(unique=True, db_index=True)
+    product_name = models.CharField(
+        max_length=220, blank=True,
+        help_text="Auto-filled label — for admin display only"
+    )
+    commission_type = models.CharField(
+        max_length=15,
+        choices=CommissionSetting.COMMISSION_TYPE_CHOICES,
+        default=CommissionSetting.COMMISSION_PERCENTAGE,
+    )
+    commission_value = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))],
+        help_text="Percentage or flat BDT amount"
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Product Commission Setting"
+        verbose_name_plural = "Product Commission Settings"
+        ordering = ['product_id']
+
+    def __str__(self):
+        symbol = '%' if self.commission_type == CommissionSetting.COMMISSION_PERCENTAGE else '৳'
+        name = self.product_name or f"Product #{self.product_id}"
+        return f"{name}: {self.commission_value}{symbol}"
+
+    def calculate_commission(self, order_amount):
+        if self.commission_type == CommissionSetting.COMMISSION_PERCENTAGE:
+            return (order_amount * self.commission_value / Decimal('100')).quantize(Decimal('0.01'))
+        return min(self.commission_value, order_amount)

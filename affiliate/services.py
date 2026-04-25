@@ -114,6 +114,7 @@ def _run_fraud_checks(affiliate, order_id, buyer_user, buyer_ip):
 
 # ─── Core Commission Creation ─────────────────────────────────────────────────
 
+
 @transaction.atomic
 def trigger_commission_on_delivery(
     order_id,
@@ -161,15 +162,48 @@ def trigger_commission_on_delivery(
     )
 
     # ── 4. Get commission setting ─────────────────────────────────────────
-    setting = CommissionSetting.get_default()
+    # Check for product-specific rate first, then fall back to default
+    setting = None
+
+    # Try per-product rate using first order item
+    try:
+        from store.models import OrderItem
+        first_item = OrderItem.objects.filter(order_id=order_id).select_related(
+            'variant__product'
+        ).first()
+        if first_item and first_item.variant and first_item.variant.product_id:
+            setting = CommissionSetting.objects.filter(
+                product_id=first_item.variant.product_id,
+                is_active=True,
+            ).first()
+    except Exception as e:
+        logger.debug("Per-product commission lookup failed for order #%s: %s", order_id, e)
+
+    # Fall back to global default
+    if not setting:
+        setting = CommissionSetting.get_default()
+
     if not setting:
         logger.error(
-            "No default CommissionSetting found. Cannot create commission for order #%s.",
-            order_id
+            "No active CommissionSetting found. "
+            "Please create one in Admin > Commission Settings with is_default=True. "
+            "Commission NOT created for order #%s (affiliate: %s).",
+            order_id, affiliate_code
         )
         return None
 
     commission_amount = setting.calculate_commission(order_total)
+
+    # ── 4b. Extended M7 pattern checks (only if basic checks passed) ─────
+    if not is_fraud:
+        from .fraud_service import run_extended_fraud_checks
+        commission_amount_preview = setting.calculate_commission(order_total)
+        is_fraud_ext, fraud_reason_ext = run_extended_fraud_checks(
+            affiliate, order_id, commission_amount_preview
+        )
+        if is_fraud_ext:
+            is_fraud     = True
+            fraud_reason = fraud_reason_ext
 
     # ── 5. Create Commission row ──────────────────────────────────────────
     try:
@@ -251,28 +285,42 @@ def get_affiliate_attribution(request):
     Extract affiliate attribution data from a request at checkout time.
     Returns a dict ready to save onto your Order model.
 
-    Usage in your checkout view:
-        attribution = get_affiliate_attribution(request)
-        order.affiliate_code = attribution['affiliate_code']
-        order.referral_click  = attribution['referral_click']
-        order.save()
+    Checks (in order):
+      1. request.affiliate (set by middleware)
+      2. Session key
+      3. Cookie
+      4. URL ?ref= param
     """
     from .utils import get_affiliate_from_request
 
     affiliate = get_affiliate_from_request(request)
     if not affiliate:
-        return {'affiliate_code': None, 'referral_click': None}
+        return {'affiliate_code': None, 'referral_click': None, 'affiliate': None}
 
-    # Find the most recent click for this session
-    session_key = request.session.session_key or ''
+    # Find the most recent click for this affiliate in this session
     referral_click = None
-    if session_key:
-        referral_click = (
-            ReferralClick.objects
-            .filter(affiliate=affiliate, session_key=session_key)
-            .order_by('-clicked_at')
-            .first()
-        )
+    try:
+        # Try by session key first
+        session_key = request.session.session_key or ''
+        if session_key:
+            referral_click = (
+                ReferralClick.objects
+                .filter(affiliate=affiliate, session_key=session_key)
+                .order_by('-clicked_at')
+                .first()
+            )
+        # Fallback: most recent click from this affiliate at all (last 30 days)
+        if not referral_click:
+            from django.utils import timezone
+            cutoff = timezone.now() - timezone.timedelta(days=30)
+            referral_click = (
+                ReferralClick.objects
+                .filter(affiliate=affiliate, clicked_at__gte=cutoff)
+                .order_by('-clicked_at')
+                .first()
+            )
+    except Exception:
+        pass
 
     return {
         'affiliate_code': affiliate.referral_code,

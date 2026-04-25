@@ -18,6 +18,22 @@
       <div class="card-subtitle">All fields marked required must be completed.</div>
     </div>
 
+    {% if not user_logged_in %}
+    <!-- Guest: prompt to log in first -->
+    <div style="background:rgba(201,168,76,0.08);border:1px solid var(--gold-d);border-radius:8px;padding:1.5rem;margin-bottom:1.5rem;text-align:center;">
+      <div style="font-size:1.5rem;margin-bottom:.5rem;">🔐</div>
+      <div style="font-weight:700;color:var(--gold);margin-bottom:.35rem;">Login Required</div>
+      <div style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem;">
+        You need an account to apply as an affiliate.
+      </div>
+      <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+        <a href="/accounts/login/?next={{ request.path }}" class="btn btn-gold">Login</a>
+        <a href="{% url 'affiliate:register' %}?next={{ request.path }}" class="btn btn-gold" style="background:linear-gradient(135deg,#2E7D52,#3DA86E);">Create Account</a>
+        <a href="/" class="btn btn-outline">Back to Store</a>
+      </div>
+    </div>
+    {% else %}
+
     <form method="post" novalidate>
       {% csrf_token %}
 
@@ -102,6 +118,7 @@
         <a href="/" class="btn btn-outline">Cancel</a>
       </div>
     </form>
+    {% endif %}
   </div>
 
   <!-- Sidebar: How it works -->

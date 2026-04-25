@@ -15,6 +15,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'affiliate',
     'store',
+    'ckeditor',
+    'ckeditor_uploader',
 ]
 
 MIDDLEWARE = [
@@ -84,8 +86,45 @@ SESSION_COOKIE_AGE       = 60 * 60 * 24 * 30
 SESSION_SAVE_EVERY_REQUEST = False
 
 # Auth
-LOGIN_URL           = '/accounts/login/'
-LOGIN_REDIRECT_URL  = '/affiliate/application-status/'
+LOGIN_URL            = '/accounts/login/'
+LOGIN_REDIRECT_URL   = '/affiliate/application-status/'
+LOGOUT_REDIRECT_URL  = '/'
 
 # Commission webhook
 AFFILIATE_WEBHOOK_SECRET = 'change-this-to-a-strong-secret-key'
+
+# CKEditor
+CKEDITOR_UPLOAD_PATH = 'uploads/ckeditor/'
+CKEDITOR_IMAGE_BACKEND = 'pillow'
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'Custom',
+        'toolbar_Custom': [
+            ['Bold', 'Italic', 'Underline', 'Strike'],
+            ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent'],
+            ['JustifyLeft', 'JustifyCenter', 'JustifyRight'],
+            ['Link', 'Unlink'],
+            ['Image', 'Table', 'HorizontalRule'],
+            ['TextColor', 'BGColor'],
+            ['Format', 'FontSize'],
+            ['RemoveFormat', 'Source'],
+        ],
+        'height': 400,
+        'width': '100%',
+        'removePlugins': 'stylesheetparser',
+        'extraPlugins': 'uploadimage',
+        'filebrowserUploadUrl': '/ckeditor/upload/',
+        'filebrowserBrowseUrl': '/ckeditor/browse/',
+    },
+    'basic': {
+        'toolbar': 'Basic',
+        'toolbar_Basic': [
+            ['Bold', 'Italic', 'Underline'],
+            ['NumberedList', 'BulletedList'],
+            ['Link', 'Unlink'],
+            ['RemoveFormat'],
+        ],
+        'height': 250,
+        'width': '100%',
+    },
+}

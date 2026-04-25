@@ -1,0 +1,70 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Click History{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>Click History</h1>
+  <p>Every visit through your referral link. Total: {{ total_clicks }} clicks.</p>
+</div>
+
+<div class="section-card">
+  {% if page_obj %}
+  <table class="comm-table">
+    <thead>
+      <tr>
+        <th>Date & Time</th>
+        <th>IP Address</th>
+        <th>Referred User</th>
+        <th>Landing URL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for click in page_obj %}
+      <tr>
+        <td style="white-space:nowrap;font-size:.78rem;color:#9A9188;">{{ click.clicked_at|date:"d M Y, g:i A" }}</td>
+        <td style="font-size:.8rem;color:#5A5450;font-family:monospace;">{{ click.ip_address }}</td>
+        <td>
+          {% if click.referred_user %}
+            <span style="font-size:.8rem;font-weight:600;color:#1A1A1A;">{{ click.referred_user.username }}</span>
+          {% else %}
+            <span style="font-size:.78rem;color:#9A9188;">Guest</span>
+          {% endif %}
+        </td>
+        <td style="font-size:.75rem;color:#9A9188;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ click.landing_url|default:"—" }}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" style="text-align:center;padding:3rem;color:#9A9188;">No clicks recorded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;flex-wrap:wrap;">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">← Prev</a>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if page_obj.number == num %}
+        <span style="padding:.4rem .8rem;border:1px solid var(--gold-d);border-radius:6px;font-size:.8rem;background:var(--gold-d);color:#fff;">{{ num }}</span>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <a href="?page={{ num }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="text-align:center;padding:4rem;color:#9A9188;">
+    <div style="font-size:2.5rem;margin-bottom:.75rem;">🖱️</div>
+    <div>No clicks yet. Share your referral link to start tracking.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -34,6 +34,26 @@
   .tab-btn{padding:.75rem 1.25rem;font-size:.85rem;font-weight:600;color:var(--page-text-m);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s}
   .tab-btn.active{color:var(--gold-l);border-bottom-color:var(--gold)}
   .tab-panel{display:none} .tab-panel.active{display:block}
+
+  /* Rich text description styles */
+  .product-description{color:#3A3530;font-size:.9rem;line-height:1.9;}
+  .product-description h1,.product-description h2,.product-description h3,
+  .product-description h4{font-family:'Cinzel',serif;color:#1A1208;margin:1.25rem 0 .6rem;font-weight:700;}
+  .product-description h2{font-size:1.1rem;}
+  .product-description h3{font-size:1rem;}
+  .product-description p{margin-bottom:.9rem;}
+  .product-description ul,.product-description ol{padding-left:1.5rem;margin-bottom:.9rem;}
+  .product-description li{margin-bottom:.3rem;}
+  .product-description strong,.product-description b{color:#1A1208;font-weight:700;}
+  .product-description em,.product-description i{font-style:italic;}
+  .product-description a{color:var(--gold-d);text-decoration:underline;}
+  .product-description a:hover{color:var(--gold);}
+  .product-description table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:.85rem;}
+  .product-description table th{background:#F8F5EE;padding:.5rem .75rem;border:1px solid #E8E4DC;font-weight:700;color:#1A1208;text-align:left;}
+  .product-description table td{padding:.5rem .75rem;border:1px solid #E8E4DC;}
+  .product-description img{max-width:100%;border-radius:6px;margin:.5rem 0;}
+  .product-description hr{border:none;border-top:1px solid #E8E4DC;margin:1rem 0;}
+  .product-description blockquote{border-left:3px solid var(--gold-d);padding-left:1rem;color:#5A5450;font-style:italic;margin:.75rem 0;}
 </style>
 {% endblock %}
 
@@ -74,7 +94,7 @@
     <!-- Product Info -->
     <div>
       <div style="font-size:.75rem;font-weight:700;color:var(--page-text-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">{{ product.category.name }}</div>
-      <h1 style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:.5rem;">{{ product.name }}</h1>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:#1A1208;line-height:1.3;margin-bottom:.5rem;">{{ product.name }}</h1>
       <div style="font-size:.75rem;color:var(--page-text-d);margin-bottom:1.25rem;">SKU: <span id="sku-display">{{ product.sku }}</span></div>
 
       <!-- Price display -->
@@ -93,17 +113,39 @@
         {% endif %}
       </div>
 
-      <!-- Variant attribute selectors -->
-      {% if all_attr_keys %}
-      <div id="variant-selectors" style="margin-bottom:1.5rem;">
+      <!-- Variant selector — always shown when variants exist -->
+      {% if variants %}
+      <div style="margin-bottom:1.5rem;">
+
+        {% if all_attr_keys %}
+        <!-- Attribute-based selectors (Color, Size, etc.) -->
         {% for key in all_attr_keys %}
         <div class="attr-group">
-          <div class="attr-label">{{ key }}: <span id="selected-{{ key|slugify }}" style="color:var(--text-m);font-weight:400;text-transform:none;"></span></div>
-          <div class="attr-options" id="options-{{ key|slugify }}">
-            <!-- Populated by JS -->
+          <div class="attr-label">{{ key }}: <span id="selected-attr-{{ forloop.counter }}" style="color:#9A9188;font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
+          <div class="attr-options" id="attr-options-{{ forloop.counter }}" data-key="{{ key }}">
+            <!-- Built by JS -->
           </div>
         </div>
         {% endfor %}
+        {% else %}
+        <!-- Simple variant name buttons (no attributes defined) -->
+        <div class="attr-group">
+          <div class="attr-label">Option:
+            <span id="selected-variant-name" style="color:#9A9188;font-weight:400;text-transform:none;letter-spacing:0;"></span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+            {% for v in variants %}
+            <button type="button"
+                    class="attr-btn {% if forloop.first %}selected{% endif %}"
+                    data-variant-id="{{ v.pk }}"
+                    onclick="pickVariant({{ v.pk }}, '{{ v.name|escapejs }}', this)">
+              {{ v.name }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
       </div>
       {% endif %}
 
@@ -148,7 +190,7 @@
 
     <div id="description" class="tab-panel active">
       {% if product.description %}
-        <div style="color:var(--page-text-m);font-size:.9rem;line-height:1.8;">{{ product.description|linebreaks }}</div>
+        <div class="product-description">{{ product.description|safe }}</div>
       {% else %}
         <div style="color:var(--page-text-d);font-size:.875rem;">No description available.</div>
       {% endif %}
@@ -214,7 +256,7 @@ let selectedVariantId = null;
 // Build attribute option buttons
 function buildAttrSelectors() {
   ATTR_KEYS.forEach(key => {
-    const container = document.getElementById('options-' + slugifyKey(key));
+    const container = document.querySelector(`.attr-options[data-options-key="${key}"]`);
     if (!container) return;
     const values = [...new Set(
       Object.values(VARIANT_DATA)
@@ -227,22 +269,18 @@ function buildAttrSelectors() {
       btn.textContent = val;
       btn.dataset.key = key;
       btn.dataset.val = val;
+      btn.type = 'button';
       btn.onclick = () => selectAttr(key, val, btn);
       container.appendChild(btn);
     });
   });
 }
 
-function slugifyKey(key) {
-  return key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
 function selectAttr(key, val, btn) {
-  // Deselect same key
   document.querySelectorAll(`.attr-btn[data-key="${key}"]`).forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   selectedAttrs[key] = val;
-  const labelEl = document.getElementById('selected-' + slugifyKey(key));
+  const labelEl = document.querySelector(`.selected-val[data-key="${key}"]`);
   if (labelEl) labelEl.textContent = val;
   resolveVariant();
 }
@@ -346,13 +384,65 @@ function showTab(id, btn) {
   btn.classList.add('active');
 }
 
-// Init
-buildAttrSelectors();
+function pickVariant(variantId, variantName, btn) {
+  document.querySelectorAll('.attr-btn[data-variant-id]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedVariantId = variantId;
+  const labelEl = document.getElementById('selected-variant-name');
+  if (labelEl) labelEl.textContent = variantName;
+  const v = VARIANT_DATA[variantId];
+  if (v) updatePriceDisplay(v);
+}
 
-// Auto-select first option for each key
-ATTR_KEYS.forEach(key => {
-  const firstBtn = document.querySelector(`.attr-btn[data-key="${key}"]`);
-  if (firstBtn) firstBtn.click();
-});
+// ── Init ─────────────────────────────────────────────────────────────────────
+if (ATTR_KEYS.length > 0) {
+  // Build attribute pickers from VARIANT_DATA
+  ATTR_KEYS.forEach((key, idx) => {
+    const container = document.getElementById('attr-options-' + (idx + 1));
+    if (!container) return;
+    const values = [...new Set(
+      Object.values(VARIANT_DATA)
+        .filter(v => v.attributes && v.attributes[key])
+        .map(v => v.attributes[key])
+    )];
+    values.forEach(val => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'attr-btn';
+      btn.textContent = val;
+      btn.dataset.key = key;
+      btn.dataset.val = val;
+      btn.onclick = () => {
+        document.querySelectorAll(`.attr-btn[data-key="${key}"]`).forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedAttrs[key] = val;
+        const sp = document.getElementById('selected-attr-' + (idx + 1));
+        if (sp) sp.textContent = val;
+        resolveVariant();
+      };
+      container.appendChild(btn);
+    });
+  });
+  // Auto-click first of each
+  ATTR_KEYS.forEach((key, idx) => {
+    const first = document.querySelector(`#attr-options-${idx+1} .attr-btn`);
+    if (first) first.click();
+  });
+} else {
+  // No attributes — auto-select first variant button
+  const firstBtn = document.querySelector('.attr-btn[data-variant-id]');
+  if (firstBtn) {
+    const id  = parseInt(firstBtn.dataset.variantId);
+    const name = firstBtn.textContent.trim();
+    pickVariant(id, name, firstBtn);
+  } else {
+    // Single variant hidden
+    const ids = Object.keys(VARIANT_DATA);
+    if (ids.length > 0) {
+      selectedVariantId = parseInt(ids[0]);
+      updatePriceDisplay(VARIANT_DATA[ids[0]]);
+    }
+  }
+}
 </script>
 {% endblock %}

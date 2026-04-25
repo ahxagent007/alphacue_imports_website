@@ -15,17 +15,22 @@ SESSION_KEY = getattr(settings, 'AFFILIATE_SESSION_KEY', 'affiliate_referral_cod
 def get_affiliate_from_request(request):
     """
     Resolve the active affiliate for a request.
-    Checks: middleware cache → session → cookie
+    Priority: middleware cache → URL ?ref= param → session → cookie
     Returns AffiliateProfile or None.
     """
+    # Fast path: middleware already resolved it this request
     affiliate = getattr(request, 'affiliate', None)
     if affiliate is not None:
         return affiliate
 
-    code = (
-        request.session.get(SESSION_KEY, '').strip().upper()
-        or request.COOKIES.get(COOKIE_NAME, '').strip().upper()
-    )
+    # Check URL param directly (for product share links like /product/slug/?ref=CODE)
+    code_from_url = request.GET.get('ref', '').strip().upper()
+
+    # Check session and cookie
+    code_from_session = request.session.get(SESSION_KEY, '').strip().upper()
+    code_from_cookie  = request.COOKIES.get(COOKIE_NAME, '').strip().upper()
+
+    code = code_from_url or code_from_session or code_from_cookie
 
     if not code:
         return None
@@ -39,10 +44,17 @@ def get_affiliate_from_request(request):
     except AffiliateProfile.DoesNotExist:
         return None
 
+    # Self-referral guard
     if request.user.is_authenticated and request.user == affiliate.user:
         return None
 
     return affiliate
+
+
+def get_referral_code_from_request(request):
+    """Return the raw referral code string, or empty string."""
+    affiliate = get_affiliate_from_request(request)
+    return affiliate.referral_code if affiliate else ''
 
 
 def clear_referral(request, response=None):
@@ -53,7 +65,7 @@ def clear_referral(request, response=None):
     request.session.pop(SESSION_KEY, None)
 
     keys_to_delete = [
-        k for k in request.session.keys()
+        k for k in list(request.session.keys())
         if k.startswith('affiliate_click_recorded_')
     ]
     for key in keys_to_delete:
@@ -64,9 +76,3 @@ def clear_referral(request, response=None):
 
     if hasattr(request, 'affiliate'):
         request.affiliate = None
-
-
-def get_referral_code_from_request(request):
-    """Return the raw referral code string, or empty string."""
-    affiliate = get_affiliate_from_request(request)
-    return affiliate.referral_code if affiliate else ''

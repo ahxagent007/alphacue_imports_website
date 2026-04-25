@@ -1,6 +1,6 @@
 import json
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Min, Prefetch
+from django.db.models import Min, Prefetch, Q
 
 from .models import Category, Product, ProductVariant, ProductImage, SiteSettings
 
@@ -90,6 +90,14 @@ def category_detail(request, slug):
 
 
 def product_detail(request, slug):
+    # ?ref= in URL always wins — overwrite any stale session code
+    ref_code = request.GET.get('ref', '').strip().upper()
+    if ref_code:
+        from django.conf import settings as dj_settings
+        _SESSION_KEY = getattr(dj_settings, 'AFFILIATE_SESSION_KEY', 'affiliate_referral_code')
+        request.session[_SESSION_KEY] = ref_code
+        request.session.modified = True
+
     product = get_object_or_404(
         Product.objects.prefetch_related(
             'images',
@@ -139,14 +147,70 @@ def product_detail(request, slug):
 
     ctx = _base_context()
     ctx.update({
-        'product':          product,
-        'variants':         variants,
-        'images':           images,
+        'product':           product,
+        'variants':          variants,
+        'images':            images,
         'variant_data_json': json.dumps(variant_data),
-        'attr_keys_json':   json.dumps(all_attr_keys),
-        'all_attr_keys':    all_attr_keys,
-        'related_products': related,
-        'default_variant':  variants[0] if variants else None,
+        'attr_keys_json':    json.dumps(all_attr_keys),
+        'all_attr_keys':     all_attr_keys,
+        'related_products':  related,
+        'default_variant':   variants[0] if variants else None,
+        'is_self_referral':  getattr(request, '_is_self_referral', False),
     })
     return render(request, 'store/product_detail.html', ctx)
 
+
+
+def search(request):
+    """
+    GET /search/?q=query
+    Full-text product search across name, description, short_description, SKU.
+    Also matches category name.
+    """
+    from django.db.models import Q, Prefetch
+
+    query = request.GET.get('q', '').strip()
+    sort  = request.GET.get('sort', 'newest')
+
+    products = []
+    total_count = 0
+
+    if query:
+        qs = (
+            Product.objects
+            .filter(is_active=True)
+            .filter(
+                Q(name__icontains=query) |
+                Q(short_description__icontains=query) |
+                Q(description__icontains=query) |
+                Q(sku__icontains=query) |
+                Q(category__name__icontains=query) |
+                Q(variants__name__icontains=query) |
+                Q(variants__sku__icontains=query)
+            )
+            .distinct()
+            .prefetch_related(
+                Prefetch('images', queryset=ProductImage.objects.filter(is_primary=True)),
+                Prefetch('variants', queryset=ProductVariant.objects.filter(is_active=True)),
+            )
+            .annotate(price_sort=Min('variants__price'))
+        )
+
+        if sort == 'price_asc':
+            qs = qs.order_by('price_sort')
+        elif sort == 'price_desc':
+            qs = qs.order_by('-price_sort')
+        else:
+            qs = qs.order_by('-created_at')
+
+        total_count = qs.count()
+        products = qs
+
+    ctx = _base_context()
+    ctx.update({
+        'query':        query,
+        'products':     products,
+        'total_count':  total_count,
+        'current_sort': sort,
+    })
+    return render(request, 'store/search_results.html', ctx)

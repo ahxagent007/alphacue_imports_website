@@ -1,0 +1,261 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Overview{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>Welcome back, {{ affiliate.full_name }}</h1>
+  <p>Here's how your affiliate account is performing.</p>
+</div>
+
+<!-- Referral link card -->
+<div style="background:linear-gradient(135deg,#1C1C1C,#141414);border:1px solid #303030;border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+  <div>
+    <div style="font-size:.68rem;font-weight:700;color:var(--gold-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">Your Referral Link</div>
+    <div style="font-size:.85rem;color:#9A9188;word-break:break-all;" id="ref-url-display">{{ referral_url }}</div>
+  </div>
+  <div style="display:flex;gap:.6rem;flex-shrink:0;">
+    <button onclick="copyRefLink()" style="padding:.55rem 1.1rem;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#0A0A0A;border:none;border-radius:6px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">
+      Copy Link
+    </button>
+    <a href="{{ referral_url }}" target="_blank" style="padding:.55rem 1.1rem;background:transparent;border:1px solid #303030;color:#9A9188;border-radius:6px;font-size:.8rem;font-weight:600;display:inline-flex;align-items:center;">
+      Preview ↗
+    </a>
+  </div>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Clicks</div>
+    <div class="stat-val">{{ total_clicks }}</div>
+    <div class="stat-sub">{{ clicks_7d }} this week · {{ clicks_30d }} this month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Orders</div>
+    <div class="stat-val">{{ total_orders }}</div>
+    <div class="stat-sub">From referred customers</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Conversion Rate</div>
+    <div class="stat-val">{{ conversion_rate }}%</div>
+    <div class="stat-sub">Clicks → orders (30 days)</div>
+  </div>
+  <div class="stat-card gold">
+    <div class="stat-label">Pending Earnings</div>
+    <div class="stat-val">৳{{ balance_pending|floatformat:0 }}</div>
+    <div class="stat-sub">Awaiting admin approval</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Approved Balance</div>
+    <div class="stat-val">৳{{ balance_approved|floatformat:0 }}</div>
+    <div class="stat-sub">Ready to withdraw</div>
+  </div>
+  <div class="stat-card gold">
+    <div class="stat-label">This Month</div>
+    <div class="stat-val">৳{{ earned_30d|floatformat:0 }}</div>
+    <div class="stat-sub">Earned in last 30 days</div>
+  </div>
+</div>
+
+<!-- Withdrawal balance banner -->
+{% if withdrawal_balance > 0 %}
+<div style="background:rgba(46,125,82,.07);border:1px solid #10B981;border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+  <div style="display:flex;align-items:center;gap:.75rem;">
+    <span style="font-size:1.3rem;">💳</span>
+    <div>
+      <div style="font-weight:700;font-size:.9rem;color:#065F46;">৳{{ withdrawal_balance|floatformat:0 }} available to withdraw</div>
+      <div style="font-size:.78rem;color:#5A8A70;margin-top:.1rem;">Request a withdrawal to your bKash or Nagad account.</div>
+    </div>
+  </div>
+  <a href="{% url 'affiliate:withdrawal_request' %}" style="padding:.55rem 1.25rem;background:#065F46;color:#fff;border-radius:6px;font-size:.82rem;font-weight:700;">
+    Withdraw Now →
+  </a>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start;">
+
+  <!-- Click chart -->
+  <div class="section-card">
+    <div class="section-card-head">
+      <div class="section-card-title">Clicks — Last 14 Days</div>
+      <a href="{% url 'affiliate:click_history' %}" class="section-card-link">View all →</a>
+    </div>
+    <div style="padding:1.25rem;">
+      <canvas id="clickChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Earnings summary -->
+  <div class="section-card">
+    <div class="section-card-head">
+      <div class="section-card-title">Earnings Breakdown</div>
+    </div>
+    <div style="padding:.25rem 0;">
+      <div style="display:flex;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid #F0EDE8;">
+        <span style="font-size:.83rem;color:#5A5450;">Pending</span>
+        <span style="font-size:.83rem;font-weight:700;color:#92600A;">৳{{ balance_pending|floatformat:0 }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid #F0EDE8;">
+        <span style="font-size:.83rem;color:#5A5450;">Approved</span>
+        <span style="font-size:.83rem;font-weight:700;color:#065F46;">৳{{ balance_approved|floatformat:0 }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid #F0EDE8;">
+        <span style="font-size:.83rem;color:#5A5450;">Paid Out</span>
+        <span style="font-size:.83rem;font-weight:700;color:#1D4ED8;">৳{{ affiliate.balance_paid|floatformat:0 }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid #F0EDE8;">
+        <span style="font-size:.83rem;color:#5A5450;">Total Withdrawn</span>
+        <span style="font-size:.83rem;font-weight:700;color:#1A1A1A;">৳{{ affiliate.total_withdrawn|floatformat:0 }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:.85rem 1.25rem;background:#FAFAF8;">
+        <span style="font-size:.85rem;font-weight:700;color:#1A1A1A;">Available Now</span>
+        <span style="font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:var(--gold-d);">৳{{ withdrawal_balance|floatformat:0 }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Recent commissions -->
+<div class="section-card">
+  <div class="section-card-head">
+    <div class="section-card-title">Recent Commissions</div>
+    <a href="{% url 'affiliate:commission_history' %}" class="section-card-link">View all →</a>
+  </div>
+  {% if recent_commissions %}
+  <table class="comm-table">
+    <thead>
+      <tr>
+        <th>Order #</th>
+        <th>Order Total</th>
+        <th>Commission</th>
+        <th>Status</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in recent_commissions %}
+      <tr>
+        <td style="font-weight:600;color:var(--gold-d);">#{{ c.order_id }}</td>
+        <td>৳{{ c.order_total|floatformat:0 }}</td>
+        <td style="font-weight:700;color:#065F46;">৳{{ c.commission_amount|floatformat:0 }}</td>
+        <td><span class="pill pill-{{ c.status }}">{{ c.get_status_display }}</span></td>
+        <td style="color:#9A9188;font-size:.78rem;">{{ c.created_at|date:"d M Y" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:3rem;color:#9A9188;">
+    <div style="font-size:2.5rem;margin-bottom:.75rem;">💰</div>
+    <div style="font-size:.9rem;">No commissions yet. Share your referral link to start earning!</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Share product links -->
+<div class="section-card" style="margin-bottom:1.5rem;">
+  <div class="section-card-head">
+    <div class="section-card-title">🔗 Share Product Links</div>
+    <span style="font-size:.72rem;color:#9A9188;">Your referral code is added automatically</span>
+  </div>
+  <div style="padding:1rem 1.25rem;">
+    <div style="background:#F8F5EE;border:1px solid #E8E4DC;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.82rem;color:#5A5450;">
+      💡 <strong style="color:#1A1208;">How to share:</strong>
+      Copy any product link below and share it anywhere — WhatsApp, Facebook, Instagram, or SMS.
+      When someone buys through your link, you earn commission automatically.
+    </div>
+
+    {% if share_products %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;">
+      {% for product in share_products %}
+      <div style="background:#fff;border:1px solid #E8E4DC;border-radius:8px;overflow:hidden;">
+        {% if product.primary_image_url %}
+        <img src="{{ product.primary_image_url }}" alt="{{ product.name }}"
+             style="width:100%;height:110px;object-fit:cover;">
+        {% else %}
+        <div style="width:100%;height:110px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;font-size:2rem;">📦</div>
+        {% endif %}
+        <div style="padding:.65rem .75rem;">
+          <div style="font-size:.8rem;font-weight:600;color:#1A1208;margin-bottom:.5rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ product.name }}
+          </div>
+          <div style="font-size:.75rem;color:var(--gold-d);font-weight:700;margin-bottom:.5rem;">
+            {{ product.display_price }}
+          </div>
+          <button onclick="copyProductLink('{{ base_url }}/product/{{ product.slug }}/?ref={{ affiliate.referral_code }}', this)"
+                  style="width:100%;padding:.4rem;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#0A0A0A;border:none;border-radius:5px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">
+            Copy Link
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:2rem;color:#9A9188;font-size:.875rem;">
+      No products available to share yet.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyRefLink() {
+  const url = document.getElementById('ref-url-display').textContent.trim();
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function copyProductLink(url, btn) {
+  navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#065F46';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 2000);
+  });
+}
+
+// Click chart
+const ctx = document.getElementById('clickChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels|safe }},
+    datasets: [{
+      label: 'Clicks',
+      data: {{ chart_clicks|safe }},
+      backgroundColor: 'rgba(160,120,48,0.25)',
+      borderColor: '#A07830',
+      borderWidth: 2,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {legend: {display: false}},
+    scales: {
+      x: {grid: {display: false}, ticks: {font: {size: 10}, color: '#9A9188'}},
+      y: {grid: {color: '#F0EDE8'}, ticks: {font: {size: 10}, color: '#9A9188'}, beginAtZero: true}
+    }
+  }
+});
+</script>
+{% endblock %}

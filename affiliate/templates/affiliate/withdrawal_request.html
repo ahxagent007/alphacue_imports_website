@@ -1,0 +1,117 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Request Withdrawal{% endblock %}
+
+{% block extra_head %}
+<style>
+  .wd-layout{display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start}
+  .form-section{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);padding:1.75rem;margin-bottom:1.25rem}
+  .form-section-title{font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:#1A1208;letter-spacing:.03em;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid #F0EDE8}
+  .form-group{margin-bottom:1.1rem}
+  .form-label{display:block;font-size:.75rem;font-weight:700;color:#5A5450;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.4rem}
+  .form-label span{color:#8B2020;margin-left:2px}
+  .form-input{width:100%;background:#FAFAF8;border:1px solid #E8E4DC;border-radius:var(--radius-sm);color:#1A1A1A;font-family:'Inter',sans-serif;font-size:.9rem;padding:.65rem .9rem;outline:none;transition:border-color .2s}
+  .form-input:focus{border-color:var(--gold-d);box-shadow:0 0 0 3px rgba(160,120,48,.1)}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239A9188' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;padding-right:2rem}
+  .invalid-feedback{font-size:.78rem;color:#8B2020;margin-top:.25rem;display:block}
+  .field-error .form-input{border-color:#8B2020}
+  .summary-card{background:#F8F5EE;border:1px solid #E8E4DC;border-radius:var(--radius);padding:1.5rem;position:sticky;top:80px}
+  .summary-row{display:flex;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid #EDE9E0;font-size:.85rem}
+  .summary-row:last-of-type{border-bottom:none}
+  .info-box{background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius-sm);padding:1rem;margin-top:1rem;font-size:.8rem;color:#5A5450;line-height:1.7}
+  @media(max-width:768px){.wd-layout{grid-template-columns:1fr}.summary-card{position:static}}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>Request Withdrawal</h1>
+  <p>Withdraw your approved earnings to your bKash or Nagad account.</p>
+</div>
+
+<form method="post" novalidate>
+{% csrf_token %}
+<div class="wd-layout">
+
+  <!-- Left: Form -->
+  <div>
+    <div class="form-section">
+      <div class="form-section-title">💳 Withdrawal Details</div>
+
+      <div class="form-group {% if form.amount.errors %}field-error{% endif %}">
+        <label class="form-label">Amount (৳) <span>*</span></label>
+        {{ form.amount }}
+        <div style="font-size:.75rem;color:#9A9188;margin-top:.3rem;">
+          Min: ৳{{ min_amount|floatformat:0 }} · Max: ৳{{ max_amount|floatformat:0 }}
+        </div>
+        {% for err in form.amount.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group {% if form.payment_method.errors %}field-error{% endif %}">
+        <label class="form-label">Payment Method <span>*</span></label>
+        {{ form.payment_method }}
+        {% for err in form.payment_method.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group {% if form.payment_account.errors %}field-error{% endif %}">
+        <label class="form-label">Account Number <span>*</span></label>
+        {{ form.payment_account }}
+        <div style="font-size:.75rem;color:#9A9188;margin-top:.3rem;">
+          The mobile number registered with your bKash or Nagad account.
+        </div>
+        {% for err in form.payment_account.errors %}
+          <span class="invalid-feedback">{{ err }}</span>
+        {% endfor %}
+      </div>
+
+      {% if form.non_field_errors %}
+      <div style="background:rgba(139,32,32,.07);border-left:3px solid #8B2020;border-radius:6px;padding:.85rem 1rem;color:#8B2020;font-size:.875rem;margin-bottom:1rem;">
+        {{ form.non_field_errors.0 }}
+      </div>
+      {% endif %}
+
+      <button type="submit" class="btn btn-gold" style="width:100%;justify-content:center;padding:.9rem;font-size:.95rem;">
+        Submit Withdrawal Request
+      </button>
+    </div>
+  </div>
+
+  <!-- Right: Summary -->
+  <div class="summary-card">
+    <div style="font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:#1A1208;margin-bottom:1rem;">Your Balance</div>
+
+    <div class="summary-row">
+      <span style="color:#5A5450;">Approved Balance</span>
+      <span style="font-weight:700;color:#065F46;">৳{{ affiliate.balance_approved|floatformat:0 }}</span>
+    </div>
+    <div class="summary-row">
+      <span style="color:#5A5450;">Pending Withdrawals</span>
+      <span style="font-weight:600;color:#92600A;">
+        ৳{% with pw=affiliate.withdrawal_requests.all %}
+          {% for w in pw %}{% if w.status == 'pending' %}{{ w.amount|floatformat:0 }}{% endif %}{% endfor %}
+        {% endwith %}0</span>
+    </div>
+    <div class="summary-row" style="border-top:2px solid var(--gold-d);margin-top:.5rem;padding-top:.65rem;">
+      <span style="font-weight:700;color:#1A1A1A;">Available</span>
+      <span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-d);">৳{{ max_amount|floatformat:0 }}</span>
+    </div>
+
+    <div class="info-box">
+      <div style="font-weight:700;color:#1A1208;margin-bottom:.35rem;">ℹ️ How it works</div>
+      <ul style="padding-left:1.1rem;display:flex;flex-direction:column;gap:.3rem;">
+        <li>Submit your request below</li>
+        <li>Admin reviews within 1–3 business days</li>
+        <li>Payment sent to your account</li>
+        <li>You'll see the transaction ID here once paid</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+</form>
+
+{% endblock %}

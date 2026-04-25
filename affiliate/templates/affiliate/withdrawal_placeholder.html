@@ -1,0 +1,17 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Withdrawals{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Withdrawal System</h1>
+  <p>Coming in M6 — Withdrawal System milestone.</p>
+</div>
+<div style="background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);padding:3rem;text-align:center;">
+  <div style="font-size:3rem;margin-bottom:1rem;">💳</div>
+  <div style="font-size:1rem;font-weight:600;color:#1A1208;margin-bottom:.5rem;">Withdrawal System Coming Soon</div>
+  <div style="font-size:.875rem;color:#5A5450;">
+    Your available balance is <strong style="color:var(--gold-d);">৳{{ affiliate.withdrawal_balance|floatformat:0 }}</strong>.
+    Withdrawal requests will be available in the next update.
+  </div>
+</div>
+{% endblock %}

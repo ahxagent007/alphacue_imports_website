@@ -1,0 +1,118 @@
+{% extends "affiliate/dashboard_base.html" %}
+{% block title %}Withdrawal History{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1>Withdrawal History</h1>
+  <p>All your withdrawal requests and their current status.</p>
+</div>
+
+<!-- Summary -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:1.75rem;">
+  <div class="stat-card">
+    <div class="stat-label">Available to Withdraw</div>
+    <div class="stat-val gold" style="color:var(--gold-d);">৳{{ affiliate.withdrawal_balance|floatformat:0 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Withdrawn</div>
+    <div class="stat-val" style="color:#1D4ED8;">৳{{ affiliate.total_withdrawn|floatformat:0 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Approved Requests</div>
+    <div class="stat-val" style="color:#065F46;">{{ total_requested }}</div>
+  </div>
+</div>
+
+{% if affiliate.withdrawal_balance > 0 %}
+<div style="background:rgba(46,125,82,.07);border:1px solid #10B981;border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+  <div style="font-size:.875rem;color:#065F46;font-weight:600;">
+    💳 You have ৳{{ affiliate.withdrawal_balance|floatformat:0 }} available to withdraw.
+  </div>
+  <a href="{% url 'affiliate:withdrawal_request' %}" style="padding:.5rem 1.1rem;background:#065F46;color:#fff;border-radius:6px;font-size:.82rem;font-weight:700;">
+    Request Withdrawal →
+  </a>
+</div>
+{% endif %}
+
+<!-- Table -->
+<div class="section-card">
+  {% if page_obj %}
+  <table class="comm-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Amount</th>
+        <th>Method</th>
+        <th>Account</th>
+        <th>Status</th>
+        <th>Transaction ID</th>
+        <th>Requested</th>
+        <th>Processed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for w in page_obj %}
+      <tr>
+        <td style="color:#9A9188;font-size:.78rem;">{{ w.pk }}</td>
+        <td style="font-weight:700;color:var(--gold-d);">৳{{ w.amount|floatformat:0 }}</td>
+        <td>
+          <span style="font-size:.8rem;font-weight:600;color:#1A1A1A;">{{ w.get_payment_method_display }}</span>
+        </td>
+        <td style="font-size:.82rem;color:#5A5450;font-family:monospace;">{{ w.payment_account }}</td>
+        <td>
+          <span class="pill
+            {% if w.status == 'pending' %}pill-pending
+            {% elif w.status == 'approved' %}pill-approved
+            {% elif w.status == 'paid' %}pill-paid
+            {% elif w.status == 'rejected' %}pill-rejected
+            {% endif %}">
+            {{ w.get_status_display }}
+          </span>
+          {% if w.status == 'rejected' and w.rejection_reason %}
+          <div style="font-size:.7rem;color:#8B2020;margin-top:.2rem;">{{ w.rejection_reason }}</div>
+          {% endif %}
+        </td>
+        <td style="font-size:.78rem;color:#5A5450;font-family:monospace;">
+          {{ w.transaction_id|default:"—" }}
+        </td>
+        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ w.requested_at|date:"d M Y" }}</td>
+        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">
+          {{ w.processed_at|date:"d M Y"|default:"—" }}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" style="text-align:center;padding:3rem;color:#9A9188;">
+          <div style="font-size:2rem;margin-bottom:.75rem;">💳</div>
+          No withdrawal requests yet.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;flex-wrap:wrap;">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">← Prev</a>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if page_obj.number == num %}
+        <span style="padding:.4rem .8rem;border:1px solid var(--gold-d);border-radius:6px;font-size:.8rem;background:var(--gold-d);color:#fff;">{{ num }}</span>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <a href="?page={{ num }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" style="padding:.4rem .8rem;border:1px solid #E8E4DC;border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="text-align:center;padding:4rem;color:#9A9188;">No withdrawal requests found.</div>
+  {% endif %}
+</div>
+
+{% endblock %}
