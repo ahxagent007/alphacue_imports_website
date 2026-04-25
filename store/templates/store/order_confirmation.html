@@ -1,0 +1,97 @@
+{% extends "store/base_store.html" %}
+{% block title %}Order Confirmed — AlphaCue Imports{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+  <div style="max-width:680px;margin:0 auto;">
+
+    <!-- Success header -->
+    <div style="text-align:center;padding:2.5rem 0 2rem;">
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(46,125,82,.1);border:2px solid #2E7D52;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1.25rem;">✓</div>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:#1A1A1A;margin-bottom:.5rem;">Order Placed Successfully!</h1>
+      <p style="color:#5A5450;font-size:.95rem;">Thank you, <strong>{{ order.customer_name }}</strong>. We'll confirm your order shortly.</p>
+    </div>
+
+    <!-- Order details card -->
+    <div style="background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.75rem;margin-bottom:1.5rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--page-border);">
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;">Order Number</div>
+          <div style="font-family:'Cinzel',serif;font-size:1.2rem;font-weight:700;color:var(--gold-d);">{{ order.order_number }}</div>
+        </div>
+        <span style="background:rgba(201,168,76,.12);color:var(--gold-d);border:1px solid var(--gold-d);padding:.3rem .9rem;border-radius:20px;font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">
+          {{ order.get_status_display }}
+        </span>
+      </div>
+
+      <!-- Customer + delivery -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">Customer</div>
+          <div style="font-size:.875rem;color:#1A1A1A;font-weight:600;">{{ order.customer_name }}</div>
+          <div style="font-size:.82rem;color:#5A5450;">{{ order.customer_phone }}</div>
+          {% if order.customer_email %}
+          <div style="font-size:.82rem;color:#5A5450;">{{ order.customer_email }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">Delivery To</div>
+          <div style="font-size:.875rem;color:#1A1A1A;font-weight:600;">{{ order.address_line }}</div>
+          <div style="font-size:.82rem;color:#5A5450;">{{ order.city }}</div>
+          <div style="font-size:.78rem;color:#9A9188;margin-top:.15rem;">{{ order.get_delivery_zone_display }}</div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div style="border-top:1px solid var(--page-border);padding-top:1rem;">
+        <div style="font-size:.72rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem;">Items Ordered</div>
+        {% for item in items %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--page-border);font-size:.875rem;gap:1rem;">
+          <div>
+            <div style="font-weight:600;color:#1A1A1A;">{{ item.product_name }}</div>
+            <div style="font-size:.78rem;color:#9A9188;">{{ item.variant_name }} × {{ item.quantity }}</div>
+          </div>
+          <div style="font-weight:700;color:var(--gold-d);white-space:nowrap;">৳{{ item.line_total|floatformat:0 }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Totals -->
+      <div style="margin-top:1rem;padding-top:.75rem;">
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:#5A5450;margin-bottom:.35rem;">
+          <span>Subtotal</span><span style="color:#1A1A1A;font-weight:600;">৳{{ order.subtotal|floatformat:0 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:#5A5450;margin-bottom:.5rem;">
+          <span>Delivery ({{ order.get_delivery_zone_display }})</span>
+          <span style="color:#1A1A1A;font-weight:600;">৳{{ order.delivery_fee|floatformat:0 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-top:2px solid var(--gold-d);padding-top:.65rem;margin-top:.25rem;">
+          <span style="font-weight:700;font-size:.95rem;color:#1A1A1A;">Total</span>
+          <span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold-d);">৳{{ order.grand_total|floatformat:0 }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COD notice -->
+    <div style="background:#fff;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1.5rem;display:flex;gap:1rem;align-items:flex-start;">
+      <span style="font-size:1.5rem;flex-shrink:0;">💵</span>
+      <div>
+        <div style="font-weight:700;font-size:.9rem;color:#1A1A1A;margin-bottom:.25rem;">Cash on Delivery</div>
+        <div style="font-size:.82rem;color:#5A5450;line-height:1.6;">
+          Please keep <strong>৳{{ order.grand_total|floatformat:0 }}</strong> ready when our delivery agent arrives.
+          {% if order.delivery_note %}
+          <br>Your note: <em>{{ order.delivery_note }}</em>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+      <a href="{% url 'store:product_list' %}" class="btn btn-gold">Continue Shopping</a>
+      <a href="{% url 'store:homepage' %}" class="btn btn-outline-gold">Go to Homepage</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

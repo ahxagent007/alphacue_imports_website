@@ -1,0 +1,172 @@
+{% extends "affiliate/base.html" %}
+
+{% block title %}Application Status — AlphaCue Affiliate{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>Application Status</h1>
+  <p>Track your affiliate application progress below.</p>
+</div>
+<hr class="gold-divider">
+
+<div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem; align-items: start;">
+
+  <!-- Status Card -->
+  <div>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-header">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div class="card-title">Application #{{ profile.pk }}</div>
+          <span class="badge badge-{{ profile.status }}">{{ profile.get_status_display }}</span>
+        </div>
+        <div class="card-subtitle">Submitted on {{ profile.applied_at|date:"d M Y, g:i A" }}</div>
+      </div>
+
+      <div class="info-row">
+        <span class="info-label">Full Name</span>
+        <span class="info-value">{{ profile.full_name }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Phone Number</span>
+        <span class="info-value">{{ profile.phone_number }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Payment Method</span>
+        <span class="info-value">{{ profile.get_preferred_payment_method_display }}</span>
+      </div>
+      {% if profile.payment_account_number %}
+      <div class="info-row">
+        <span class="info-label">Payment Account</span>
+        <span class="info-value">{{ profile.payment_account_number }}</span>
+      </div>
+      {% endif %}
+      <div class="info-row">
+        <span class="info-label">Referral Code</span>
+        <span class="info-value" style="font-family:'Cinzel',serif; color:var(--gold); letter-spacing:0.1em;">
+          {% if profile.status == 'approved' %}{{ profile.referral_code }}{% else %}— (pending approval){% endif %}
+        </span>
+      </div>
+      {% if profile.approved_at %}
+      <div class="info-row">
+        <span class="info-label">Approved On</span>
+        <span class="info-value">{{ profile.approved_at|date:"d M Y" }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Approved: show referral link -->
+    {% if profile.status == 'approved' %}
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-header">
+        <div class="card-title" style="font-size:1rem;">Your Referral Link</div>
+        <div class="card-subtitle">Share this link to earn commissions.</div>
+      </div>
+      <div class="referral-box">
+        <div>
+          <div class="referral-code-text">{{ profile.referral_code }}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;" id="ref-url">
+            {{ request.scheme }}://{{ request.get_host }}/ref/{{ profile.referral_code }}/
+          </div>
+        </div>
+        <button class="btn btn-gold" onclick="copyRefLink()" style="padding:0.6rem 1.25rem; font-size:0.8rem;">
+          Copy Link
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Rejected: show reason -->
+    {% if profile.status == 'rejected' and profile.rejection_reason %}
+    <div class="alert alert-danger">
+      <div>
+        <strong>Rejection Reason:</strong><br>
+        {{ profile.rejection_reason }}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Suspended -->
+    {% if profile.status == 'suspended' %}
+    <div class="alert alert-warning">
+      Your affiliate account has been suspended. Please contact support for more information.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Application steps tracker -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title" style="font-size:1rem;">Progress</div>
+    </div>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-icon done">✓</div>
+        <div class="step-content">
+          <div class="step-title">Application Submitted</div>
+          <div class="step-desc">{{ profile.applied_at|date:"d M Y" }}</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-icon {% if profile.status == 'approved' %}done{% elif profile.status == 'pending' %}active{% else %}{% endif %}">
+          {% if profile.status == 'approved' %}✓{% elif profile.status == 'pending' %}2{% else %}✗{% endif %}
+        </div>
+        <div class="step-content">
+          <div class="step-title">Under Review</div>
+          <div class="step-desc">
+            {% if profile.status == 'approved' %}Completed
+            {% elif profile.status == 'pending' %}Usually 1–2 business days
+            {% elif profile.status == 'rejected' %}Application rejected
+            {% else %}Account suspended{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-icon {% if profile.status == 'approved' %}active{% endif %}">
+          {% if profile.status == 'approved' %}✓{% else %}3{% endif %}
+        </div>
+        <div class="step-content">
+          <div class="step-title">Approved & Active</div>
+          <div class="step-desc">
+            {% if profile.status == 'approved' %}
+              Since {{ profile.approved_at|date:"d M Y" }}
+            {% else %}
+              Waiting for approval
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    {% if profile.status == 'pending' %}
+    <div class="alert alert-warning" style="margin-top:1rem; margin-bottom:0;">
+      Your application is under review. You will be notified once a decision is made.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+function copyRefLink() {
+  const url = document.getElementById('ref-url').textContent.trim();
+  navigator.clipboard.writeText(url).then(function() {
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = original, 2000);
+  });
+}
+</script>
+
+<style>
+  @media (max-width: 768px) {
+    div[style*="grid-template-columns: 1fr 320px"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+{% endblock %}

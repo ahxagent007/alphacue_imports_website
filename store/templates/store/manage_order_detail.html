@@ -1,0 +1,137 @@
+{% extends "store/base_store.html" %}
+{% block title %}Order {{ order.order_number }} — Manage{% endblock %}
+
+{% block extra_head %}
+<style>
+  .detail-grid{display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start}
+  .detail-card{background:#fff;border:1px solid var(--page-border);border-radius:10px;overflow:hidden;margin-bottom:1.25rem}
+  .detail-card-head{padding:.9rem 1.25rem;background:#FAFAF8;border-bottom:1px solid var(--page-border);font-size:.78rem;font-weight:700;color:#9A9188;text-transform:uppercase;letter-spacing:.06em}
+  .detail-row{display:flex;justify-content:space-between;padding:.65rem 1.25rem;border-bottom:1px solid var(--page-border);font-size:.875rem}
+  .detail-row:last-child{border-bottom:none}
+  .detail-key{color:#9A9188}
+  .detail-val{color:#1A1A1A;font-weight:600;text-align:right;max-width:60%}
+  .status-pill{display:inline-block;padding:.3rem .85rem;border-radius:12px;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .pill-pending{background:rgba(245,158,11,.1);color:#92600A;border:1px solid #D4A017}
+  .pill-confirmed{background:rgba(59,130,246,.1);color:#1D4ED8;border:1px solid #3B82F6}
+  .pill-shipped{background:rgba(139,92,246,.1);color:#6D28D9;border:1px solid #8B5CF6}
+  .pill-delivered{background:rgba(16,185,129,.1);color:#065F46;border:1px solid #10B981}
+  .pill-cancelled{background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444}
+  @media(max-width:768px){.detail-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <div class="breadcrumb">
+    <a href="{% url 'store:manage_order_list' %}">Orders</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ order.order_number }}</span>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.75rem;">
+    <div>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;color:var(--gold-d);">{{ order.order_number }}</h1>
+      <div style="font-size:.82rem;color:var(--page-text-m);margin-top:.2rem;">{{ order.created_at|date:"d M Y, g:i A" }}</div>
+    </div>
+    <span class="status-pill pill-{{ order.status }}">{{ order.get_status_display }}</span>
+  </div>
+
+  <div class="detail-grid">
+
+    <!-- Left -->
+    <div>
+      <!-- Items -->
+      <div class="detail-card">
+        <div class="detail-card-head">Items Ordered</div>
+        {% for item in items %}
+        <div style="display:flex;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--page-border);font-size:.875rem;gap:1rem;">
+          <div>
+            <div style="font-weight:600;color:#1A1A1A;">{{ item.product_name }}</div>
+            <div style="font-size:.78rem;color:#9A9188;margin-top:.15rem;">{{ item.variant_name }} × {{ item.quantity }} · SKU: {{ item.sku }}</div>
+          </div>
+          <div style="font-weight:700;color:var(--gold-d);white-space:nowrap;">৳{{ item.line_total|floatformat:0 }}</div>
+        </div>
+        {% endfor %}
+        <div style="padding:.75rem 1.25rem;background:#FAFAF8;">
+          <div style="display:flex;justify-content:space-between;font-size:.83rem;color:#5A5450;margin-bottom:.3rem;">
+            <span>Subtotal</span><span style="font-weight:600;color:#1A1A1A;">৳{{ order.subtotal|floatformat:0 }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:.83rem;color:#5A5450;margin-bottom:.5rem;">
+            <span>Delivery</span><span style="font-weight:600;color:#1A1A1A;">৳{{ order.delivery_fee|floatformat:0 }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-top:2px solid var(--gold-d);padding-top:.6rem;">
+            <span style="font-weight:700;color:#1A1A1A;">Total</span>
+            <span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-d);">৳{{ order.grand_total|floatformat:0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer info -->
+      <div class="detail-card">
+        <div class="detail-card-head">Customer Information</div>
+        <div class="detail-row"><span class="detail-key">Name</span><span class="detail-val">{{ order.customer_name }}</span></div>
+        <div class="detail-row"><span class="detail-key">Phone</span><span class="detail-val">{{ order.customer_phone }}</span></div>
+        {% if order.customer_email %}
+        <div class="detail-row"><span class="detail-key">Email</span><span class="detail-val">{{ order.customer_email }}</span></div>
+        {% endif %}
+        <div class="detail-row"><span class="detail-key">Address</span><span class="detail-val">{{ order.address_line }}, {{ order.city }}</span></div>
+        <div class="detail-row"><span class="detail-key">Zone</span><span class="detail-val">{{ order.get_delivery_zone_display }}</span></div>
+        {% if order.delivery_note %}
+        <div class="detail-row"><span class="detail-key">Note</span><span class="detail-val" style="font-style:italic;">{{ order.delivery_note }}</span></div>
+        {% endif %}
+      </div>
+
+      {% if order.affiliate_code %}
+      <div class="detail-card">
+        <div class="detail-card-head">Affiliate Attribution</div>
+        <div class="detail-row"><span class="detail-key">Referral Code</span><span class="detail-val" style="font-family:'Cinzel',serif;color:var(--gold-d);">{{ order.affiliate_code }}</span></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right: Status change -->
+    <div>
+      <div style="background:#F8F5EE;border:1px solid var(--page-border);border-radius:10px;padding:1.5rem;position:sticky;top:90px;">
+        <div style="font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:var(--gold-d);margin-bottom:1.25rem;">Update Order</div>
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <div style="margin-bottom:1rem;">
+            <label style="display:block;font-size:.75rem;font-weight:700;color:#5A5450;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Status</label>
+            <select name="status" style="width:100%;background:#fff;border:1px solid var(--page-border);border-radius:6px;color:#1A1A1A;font-family:'Inter',sans-serif;font-size:.875rem;padding:.65rem .9rem;outline:none;">
+              {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if order.status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div style="margin-bottom:1.25rem;">
+            <label style="display:block;font-size:.75rem;font-weight:700;color:#5A5450;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Admin Notes</label>
+            <textarea name="admin_notes" rows="3"
+              style="width:100%;background:#fff;border:1px solid var(--page-border);border-radius:6px;color:#1A1A1A;font-family:'Inter',sans-serif;font-size:.875rem;padding:.65rem .9rem;outline:none;resize:vertical;">{{ order.admin_notes }}</textarea>
+          </div>
+
+          <button type="submit" class="btn btn-gold" style="width:100%;justify-content:center;">
+            Save Changes
+          </button>
+        </form>
+
+        {% if order.status != 'delivered' and order.status != 'cancelled' %}
+        <div style="margin-top:.85rem;padding:.85rem;background:#fff;border:1px solid var(--page-border);border-radius:8px;font-size:.78rem;color:#9A9188;line-height:1.6;">
+          💡 Marking as <strong>Delivered</strong> will automatically trigger affiliate commission if a referral code is present.
+        </div>
+        {% endif %}
+
+        {% if order.status == 'delivered' %}
+        <div style="margin-top:.85rem;padding:.85rem;background:rgba(16,185,129,.07);border:1px solid #10B981;border-radius:8px;font-size:.78rem;color:#065F46;">
+          ✓ This order has been delivered. Commission has been triggered.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "store/base_store.html" %}
+{% block title %}Shop All Products — AlphaCue Imports{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <div class="breadcrumb">
+    <a href="{% url 'store:homepage' %}">Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Shop</span>
+    {% if selected_category %}
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ selected_category.name }}</span>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
+    <div>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">
+        {% if selected_category %}{{ selected_category.name }}{% else %}All Products{% endif %}
+      </h1>
+      <div style="font-size:.82rem;color:var(--page-text-d);margin-top:.25rem;">{{ total_count }} product{{ total_count|pluralize }}</div>
+    </div>
+
+    <!-- Sort -->
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <span style="font-size:.8rem;color:var(--page-text-m);">Sort by:</span>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        {% for val, label in sort_options %}
+        <a href="?sort={{ val }}{% if selected_category_slug %}&category={{ selected_category_slug }}{% endif %}"
+           style="padding:.35rem .85rem;border-radius:20px;font-size:.78rem;font-weight:600;border:1px solid;transition:all .2s;
+           {% if current_sort == val %}background:var(--gold-dim);border-color:var(--gold-d);color:var(--gold-l){% else %}background:transparent;border-color:var(--black-e);color:var(--text-m){% endif %}">
+          {{ label }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if products %}
+    <div class="product-grid">
+      {% for product in products %}
+        {% include "store/partials/product_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="text-align:center;padding:5rem 2rem;color:var(--text-d);">
+      <div style="font-size:3.5rem;margin-bottom:1rem;">🔍</div>
+      <div style="font-size:1rem;font-weight:600;color:var(--text-m);">No products found</div>
+      <div style="font-size:.85rem;margin-top:.5rem;">Try a different category or check back later.</div>
+      <a href="{% url 'store:product_list' %}" class="btn btn-outline-gold" style="margin-top:1.5rem;">View All Products</a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

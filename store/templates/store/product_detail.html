@@ -1,0 +1,358 @@
+{% extends "store/base_store.html" %}
+{% block title %}{{ product.name }} — AlphaCue Imports{% endblock %}
+
+{% block extra_head %}
+<style>
+  .gallery-main{aspect-ratio:1/1;background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius);overflow:hidden;position:relative}
+  .gallery-main img{width:100%;height:100%;object-fit:cover}
+  .gallery-thumbs{display:flex;gap:.6rem;margin-top:.75rem;flex-wrap:wrap}
+  .gallery-thumb{width:64px;height:64px;border-radius:var(--radius-sm);overflow:hidden;border:2px solid var(--page-border);cursor:pointer;transition:border-color .2s;flex-shrink:0}
+  .gallery-thumb.active,.gallery-thumb:hover{border-color:var(--gold)}
+  .gallery-thumb img{width:100%;height:100%;object-fit:cover}
+
+  .attr-group{margin-bottom:1.25rem}
+  .attr-label{font-size:.78rem;font-weight:700;color:var(--gold-l);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+  .attr-options{display:flex;flex-wrap:wrap;gap:.5rem}
+  .attr-btn{padding:.4rem 1rem;border:1px solid var(--page-border);border-radius:20px;font-size:.82rem;font-weight:500;color:var(--page-text-m);background:transparent;cursor:pointer;transition:all .2s}
+  .attr-btn:hover{border-color:var(--gold-d);color:var(--gold-d)}
+  .attr-btn.selected{border-color:var(--gold);background:var(--gold-dim);color:var(--gold-l);font-weight:600}
+  .attr-btn.unavailable{opacity:.35;cursor:not-allowed}
+
+  .price-main{font-size:1.8rem;font-weight:700;color:var(--gold-l);font-family:'Cinzel',serif}
+  .price-old{font-size:1rem;color:var(--text-d);text-decoration:line-through;margin-left:.5rem}
+  .discount-badge{background:var(--danger);color:#fff;font-size:.75rem;font-weight:700;padding:.2rem .6rem;border-radius:4px;margin-left:.5rem}
+
+  .qty-control{display:flex;align-items:center;gap:0;border:1px solid var(--page-border);border-radius:var(--radius-sm);overflow:hidden;width:fit-content}
+  .qty-btn{background:#F8F5EE;border:none;color:var(--page-text);width:36px;height:40px;font-size:1.1rem;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center}
+  .qty-btn:hover{background:#EDE9E0}
+  .qty-input{width:48px;height:40px;background:#FFFFFF;border:none;border-left:1px solid var(--page-border);border-right:1px solid var(--page-border);color:var(--page-text);text-align:center;font-size:.9rem;font-weight:600;outline:none}
+
+  .stock-indicator{font-size:.8rem;font-weight:600;padding:.25rem 0}
+  .stock-in{color:#7EC4A0} .stock-low{color:var(--gold-l)} .stock-out{color:#E07070}
+
+  .tab-nav{display:flex;gap:0;border-bottom:1px solid var(--page-border);margin-bottom:1.5rem}
+  .tab-btn{padding:.75rem 1.25rem;font-size:.85rem;font-weight:600;color:var(--page-text-m);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s}
+  .tab-btn.active{color:var(--gold-l);border-bottom-color:var(--gold)}
+  .tab-panel{display:none} .tab-panel.active{display:block}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <div class="breadcrumb">
+    <a href="{% url 'store:homepage' %}">Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'store:category_detail' product.category.slug %}">{{ product.category.name }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ product.name }}</span>
+  </div>
+
+  <!-- Main product layout -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;margin-bottom:3rem;">
+
+    <!-- Gallery -->
+    <div>
+      <div class="gallery-main">
+        {% if images %}
+          <img id="main-img" src="{{ images.0.image.url }}" alt="{{ product.name }}">
+        {% else %}
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:5rem;color:#C0BAB0;">📦</div>
+        {% endif %}
+      </div>
+      {% if images|length > 1 %}
+      <div class="gallery-thumbs">
+        {% for img in images %}
+        <div class="gallery-thumb {% if forloop.first %}active{% endif %}" onclick="setMainImage('{{ img.image.url }}', this)">
+          <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.name }}">
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Product Info -->
+    <div>
+      <div style="font-size:.75rem;font-weight:700;color:var(--page-text-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">{{ product.category.name }}</div>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:.5rem;">{{ product.name }}</h1>
+      <div style="font-size:.75rem;color:var(--page-text-d);margin-bottom:1.25rem;">SKU: <span id="sku-display">{{ product.sku }}</span></div>
+
+      <!-- Price display -->
+      <div style="margin-bottom:1.5rem;display:flex;align-items:baseline;flex-wrap:wrap;gap:.25rem;">
+        <span class="price-main" id="price-display">{{ product.display_price }}</span>
+        <span class="price-old" id="compare-price-display" style="display:none;"></span>
+        <span class="discount-badge" id="discount-display" style="display:none;"></span>
+      </div>
+
+      <!-- Stock indicator -->
+      <div id="stock-indicator" class="stock-indicator" style="margin-bottom:1.25rem;">
+        {% if product.is_in_stock %}
+          <span class="stock-in">✓ In Stock</span>
+        {% else %}
+          <span class="stock-out">✗ Out of Stock</span>
+        {% endif %}
+      </div>
+
+      <!-- Variant attribute selectors -->
+      {% if all_attr_keys %}
+      <div id="variant-selectors" style="margin-bottom:1.5rem;">
+        {% for key in all_attr_keys %}
+        <div class="attr-group">
+          <div class="attr-label">{{ key }}: <span id="selected-{{ key|slugify }}" style="color:var(--text-m);font-weight:400;text-transform:none;"></span></div>
+          <div class="attr-options" id="options-{{ key|slugify }}">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Qty + Add to cart -->
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+        <div class="qty-control">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <input type="number" class="qty-input" id="qty-input" value="1" min="1" max="99">
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+        <button class="btn btn-gold" id="add-to-cart-btn" onclick="addToCart()" style="flex:1;min-width:160px;justify-content:center;padding:.85rem;">
+          🛒 Add to Cart
+        </button>
+      </div>
+
+      <!-- Buy now -->
+      <a href="{% url 'store:cart' %}" id="buy-now-btn" class="btn btn-outline-gold" style="width:100%;justify-content:center;margin-bottom:1.5rem;" onclick="addToCart(true)">
+        ⚡ Buy Now
+      </a>
+
+      <!-- Delivery info -->
+      <div style="background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius);padding:1rem 1.25rem;">
+        <div style="font-size:.78rem;font-weight:700;color:var(--gold);margin-bottom:.6rem;letter-spacing:.04em;">🚚 DELIVERY INFO</div>
+        <div style="font-size:.83rem;color:var(--page-text-m);display:flex;flex-direction:column;gap:.4rem;">
+          <div>📍 Inside Dhaka — <strong style="color:var(--page-text);">৳{{ site_settings.delivery_fee_inside_dhaka|floatformat:0 }}</strong></div>
+          <div>🗺️ Outside Dhaka — <strong style="color:var(--page-text);">৳{{ site_settings.delivery_fee_outside_dhaka|floatformat:0 }}</strong></div>
+          <div>💵 Cash on Delivery only</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tabs: Description / Details -->
+  <div style="margin-bottom:3rem;">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="showTab('description', this)">Description</button>
+      {% if variants.0.attributes.all %}
+      <button class="tab-btn" onclick="showTab('variants-tab', this)">Variants</button>
+      {% endif %}
+    </div>
+
+    <div id="description" class="tab-panel active">
+      {% if product.description %}
+        <div style="color:var(--page-text-m);font-size:.9rem;line-height:1.8;">{{ product.description|linebreaks }}</div>
+      {% else %}
+        <div style="color:var(--page-text-d);font-size:.875rem;">No description available.</div>
+      {% endif %}
+    </div>
+
+    <div id="variants-tab" class="tab-panel">
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.85rem;color:var(--page-text);">
+          <thead>
+            <tr style="border-bottom:1px solid var(--page-border);">
+              <th style="text-align:left;padding:.6rem .75rem;color:var(--gold-l);font-weight:600;">Variant</th>
+              <th style="text-align:left;padding:.6rem .75rem;color:var(--gold-l);font-weight:600;">Price</th>
+              <th style="text-align:left;padding:.6rem .75rem;color:var(--gold-l);font-weight:600;">Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in variants %}
+            <tr style="border-bottom:1px solid var(--page-border);">
+              <td style="padding:.65rem .75rem;color:var(--text);">{{ v.name }}</td>
+              <td style="padding:.65rem .75rem;color:var(--gold-l);font-weight:700;">৳{{ v.price|floatformat:0 }}</td>
+              <td style="padding:.65rem .75rem;">
+                {% if v.is_available %}
+                  <span style="color:#7EC4A0;font-weight:600;">{{ v.stock }} available</span>
+                {% else %}
+                  <span style="color:#E07070;">Out of Stock</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Related Products -->
+  {% if related_products %}
+  <div>
+    <div class="section-head">
+      <div>
+        <div class="section-title">You May Also Like</div>
+        <div class="gold-bar"></div>
+      </div>
+    </div>
+    <div class="product-grid">
+      {% for p in related_products %}
+        {% with product=p %}{% include "store/partials/product_card.html" %}{% endwith %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const VARIANT_DATA = {{ variant_data_json|safe }};
+const ATTR_KEYS    = {{ attr_keys_json|safe }};
+let selectedAttrs  = {};
+let selectedVariantId = null;
+
+// Build attribute option buttons
+function buildAttrSelectors() {
+  ATTR_KEYS.forEach(key => {
+    const container = document.getElementById('options-' + slugifyKey(key));
+    if (!container) return;
+    const values = [...new Set(
+      Object.values(VARIANT_DATA)
+        .filter(v => v.attributes[key])
+        .map(v => v.attributes[key])
+    )];
+    values.forEach(val => {
+      const btn = document.createElement('button');
+      btn.className = 'attr-btn';
+      btn.textContent = val;
+      btn.dataset.key = key;
+      btn.dataset.val = val;
+      btn.onclick = () => selectAttr(key, val, btn);
+      container.appendChild(btn);
+    });
+  });
+}
+
+function slugifyKey(key) {
+  return key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function selectAttr(key, val, btn) {
+  // Deselect same key
+  document.querySelectorAll(`.attr-btn[data-key="${key}"]`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedAttrs[key] = val;
+  const labelEl = document.getElementById('selected-' + slugifyKey(key));
+  if (labelEl) labelEl.textContent = val;
+  resolveVariant();
+}
+
+function resolveVariant() {
+  if (Object.keys(selectedAttrs).length < ATTR_KEYS.length) {
+    selectedVariantId = null;
+    return;
+  }
+  // Find matching variant
+  for (const [id, v] of Object.entries(VARIANT_DATA)) {
+    const match = ATTR_KEYS.every(k => v.attributes[k] === selectedAttrs[k]);
+    if (match) {
+      selectedVariantId = parseInt(id);
+      updatePriceDisplay(v);
+      return;
+    }
+  }
+  selectedVariantId = null;
+}
+
+function updatePriceDisplay(v) {
+  document.getElementById('price-display').textContent = '৳' + Math.round(v.price).toLocaleString();
+  document.getElementById('sku-display').textContent = v.sku;
+
+  const oldEl = document.getElementById('compare-price-display');
+  const discEl = document.getElementById('discount-display');
+  if (v.compare_price) {
+    oldEl.textContent = '৳' + Math.round(v.compare_price).toLocaleString();
+    oldEl.style.display = '';
+    discEl.textContent = v.discount + '% OFF';
+    discEl.style.display = '';
+  } else {
+    oldEl.style.display = 'none';
+    discEl.style.display = 'none';
+  }
+
+  const stockEl = document.getElementById('stock-indicator');
+  const btn = document.getElementById('add-to-cart-btn');
+  if (v.available) {
+    const stockText = v.stock <= 5 ? `⚠ Only ${v.stock} left` : '✓ In Stock';
+    const cls = v.stock <= 5 ? 'stock-low' : 'stock-in';
+    stockEl.innerHTML = `<span class="${cls}">${stockText}</span>`;
+    btn.disabled = false;
+    btn.textContent = '🛒 Add to Cart';
+  } else {
+    stockEl.innerHTML = '<span class="stock-out">✗ Out of Stock</span>';
+    btn.disabled = true;
+    btn.textContent = 'Out of Stock';
+  }
+}
+
+function changeQty(delta) {
+  const input = document.getElementById('qty-input');
+  const val = Math.max(1, parseInt(input.value || 1) + delta);
+  input.value = val;
+}
+
+function addToCart(buyNow = false) {
+  if (!selectedVariantId && ATTR_KEYS.length > 0) {
+    showToast('Please select all options first');
+    return false;
+  }
+  const qty = parseInt(document.getElementById('qty-input').value) || 1;
+  const variantId = selectedVariantId || {% if default_variant %}{{ default_variant.pk }}{% else %}null{% endif %};
+  if (!variantId) { showToast('No variant available'); return false; }
+
+  fetch("{% url 'store:cart_add' %}", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({ variant_id: variantId, quantity: qty })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      updateCartCount(data.cart_count);
+      showToast(data.message || 'Added to cart!');
+      if (buyNow) window.location.href = "{% url 'store:cart' %}";
+    } else {
+      showToast(data.error || 'Could not add to cart');
+    }
+  })
+  .catch(() => showToast('Something went wrong'));
+
+  return false;
+}
+
+function setMainImage(url, thumb) {
+  document.getElementById('main-img').src = url;
+  document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Init
+buildAttrSelectors();
+
+// Auto-select first option for each key
+ATTR_KEYS.forEach(key => {
+  const firstBtn = document.querySelector(`.attr-btn[data-key="${key}"]`);
+  if (firstBtn) firstBtn.click();
+});
+</script>
+{% endblock %}

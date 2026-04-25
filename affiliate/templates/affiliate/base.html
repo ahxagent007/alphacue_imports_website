@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}AlphaCue Affiliate{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:        #C9A84C;
+      --gold-light:  #E2C97E;
+      --gold-dark:   #A07830;
+      --black:       #0A0A0A;
+      --black-soft:  #141414;
+      --black-card:  #1A1A1A;
+      --black-border:#2A2A2A;
+      --text-primary:#F5F0E8;
+      --text-muted:  #8A8178;
+      --text-dim:    #5A5550;
+      --success:     #2E7D52;
+      --danger:      #8B2020;
+      --warning:     #7A5C1A;
+      --info:        #1A3A5C;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--black);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      background: var(--black-soft);
+      border-bottom: 1px solid var(--black-border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .navbar-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--gold);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+    .navbar-brand span { color: var(--text-primary); }
+    .navbar-links { display: flex; gap: 1.5rem; align-items: center; }
+    .navbar-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .navbar-links a:hover { color: var(--gold-light); }
+
+    /* ── Page wrapper ── */
+    .page-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--black-card);
+      border: 1px solid var(--black-border);
+      border-radius: 12px;
+      padding: 2rem;
+    }
+    .card-header {
+      border-bottom: 1px solid var(--black-border);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+    .card-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.03em;
+    }
+    .card-subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 0.35rem;
+    }
+
+    /* ── Page heading ── */
+    .page-heading {
+      margin-bottom: 2rem;
+    }
+    .page-heading h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.04em;
+    }
+    .page-heading p {
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    /* ── Gold divider ── */
+    .gold-divider {
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold-dark), var(--gold), transparent);
+      border: none;
+      margin: 0.75rem 0 1.5rem;
+    }
+
+    /* ── Form elements ── */
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--gold-light);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .form-control, .form-select {
+      width: 100%;
+      background: var(--black-soft);
+      border: 1px solid var(--black-border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9375rem;
+      padding: 0.75rem 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      appearance: none;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--gold-dark);
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
+    }
+    .form-control::placeholder { color: var(--text-dim); }
+    .form-text {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+    }
+    .invalid-feedback {
+      font-size: 0.8rem;
+      color: #E07070;
+      margin-top: 0.35rem;
+      display: block;
+    }
+    .form-control.is-invalid, .form-select.is-invalid {
+      border-color: #8B2020;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.75rem;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+      color: var(--black);
+    }
+    .btn-gold:hover {
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(201,168,76,0.25);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--black-border);
+      color: var(--text-muted);
+    }
+    .btn-outline:hover {
+      border-color: var(--gold-dark);
+      color: var(--gold-light);
+    }
+
+    /* ── Alerts / Messages ── */
+    .alert {
+      padding: 0.9rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      border-left: 3px solid;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .alert-success { background: rgba(46,125,82,0.15); border-color: #2E7D52; color: #7EC4A0; }
+    .alert-danger  { background: rgba(139,32,32,0.15); border-color: #8B2020; color: #E07070; }
+    .alert-warning { background: rgba(122,92,26,0.15); border-color: var(--gold-dark); color: var(--gold-light); }
+    .alert-info    { background: rgba(26,58,92,0.15);  border-color: #1A3A5C; color: #7AAED4; }
+
+    /* ── Status badges ── */
+    .badge {
+      display: inline-block;
+      padding: 0.3rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .badge-pending  { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid var(--gold-dark); }
+    .badge-approved { background: rgba(46,125,82,0.2);   color: #7EC4A0;     border: 1px solid #2E7D52; }
+    .badge-rejected { background: rgba(139,32,32,0.2);   color: #E07070;     border: 1px solid #8B2020; }
+    .badge-suspended{ background: rgba(90,85,80,0.2);    color: #8A8178;     border: 1px solid #3A3530; }
+
+    /* ── Info rows ── */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--black-border);
+      font-size: 0.9rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--text-muted); font-weight: 500; }
+    .info-value { color: var(--text-primary); font-weight: 600; }
+
+    /* ── Two column grid ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 1.5rem;
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .page-wrapper { padding: 1.5rem 1rem; }
+    }
+
+    /* ── Referral code box ── */
+    .referral-box {
+      background: var(--black-soft);
+      border: 1px solid var(--gold-dark);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .referral-code-text {
+      font-family: 'Cinzel', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.15em;
+    }
+
+    /* ── Steps timeline ── */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex;
+      gap: 1rem;
+      padding-bottom: 1.5rem;
+      position: relative;
+    }
+    .step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 36px;
+      bottom: 0;
+      width: 2px;
+      background: var(--black-border);
+    }
+    .step-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      border: 2px solid var(--black-border);
+      background: var(--black-card);
+      color: var(--text-dim);
+    }
+    .step-icon.done {
+      background: rgba(46,125,82,0.2);
+      border-color: #2E7D52;
+      color: #7EC4A0;
+    }
+    .step-icon.active {
+      background: rgba(201,168,76,0.15);
+      border-color: var(--gold-dark);
+      color: var(--gold);
+    }
+    .step-content { padding-top: 0.35rem; }
+    .step-title { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
+    .step-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="navbar-brand" href="/">AlphaCue <span>Imports</span></a>
+  <div class="navbar-links">
+    {% if user.is_authenticated %}
+      {% if user.affiliate_profile %}
+        <a href="{% url 'affiliate:application_status' %}">My Application</a>
+      {% else %}
+        <a href="{% url 'affiliate:affiliate_apply' %}">Become an Affiliate</a>
+      {% endif %}
+      <a href="/admin/" style="color: var(--gold-light);">Admin</a>
+    {% else %}
+      <a href="/accounts/login/">Login</a>
+    {% endif %}
+  </div>
+</nav>
+
+<div class="page-wrapper">
+
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }}">
+      {{ message }}
+    </div>
+  {% endfor %}
+
+  {% block content %}{% endblock %}
+
+</div>
+
+</body>
+</html>

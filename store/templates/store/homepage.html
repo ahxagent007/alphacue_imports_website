@@ -1,0 +1,90 @@
+{% extends "store/base_store.html" %}
+{% block title %}AlphaCue Imports — Quality Products Delivered{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <!-- Hero -->
+  <div style="background:linear-gradient(135deg,#F8F5EE 0%,#F0ECE2 100%);border:1px solid var(--page-border);border-radius:16px;padding:3rem 2.5rem;margin-bottom:3rem;display:flex;align-items:center;justify-content:space-between;gap:2rem;overflow:hidden;position:relative;">
+    <div style="position:absolute;right:-60px;top:-60px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,0.15),transparent 70%);pointer-events:none"></div>
+    <div style="max-width:520px;">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.75rem;">Premium Imports · Cash on Delivery</div>
+      <h1 style="font-family:'Cinzel',serif;font-size:clamp(1.6rem,3vw,2.5rem);font-weight:700;color:#1A1208;line-height:1.2;margin-bottom:1rem;">Quality Imported Products<br><span style="color:var(--gold);">At Your Doorstep</span></h1>
+      <p style="color:var(--page-text-m);font-size:0.95rem;margin-bottom:1.75rem;line-height:1.7;">Curated imports delivered across Bangladesh. Free delivery on orders above ৳2000.</p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+        <a href="{% url 'store:product_list' %}" class="btn btn-gold" style="padding:.85rem 2rem;font-size:.95rem;">Shop Now</a>
+        <a href="{% url 'affiliate:affiliate_apply' %}" class="btn btn-outline-gold">Earn as Affiliate</a>
+      </div>
+    </div>
+    <div style="font-size:6rem;opacity:0.08;user-select:none;flex-shrink:0;display:none;" class="hero-icon">📦</div>
+  </div>
+
+  <!-- Categories -->
+  {% if categories %}
+  <div style="margin-bottom:3rem;">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Shop by Category</div>
+        <div class="gold-bar"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;">
+      {% for cat in categories %}
+      <a href="{% url 'store:category_detail' cat.slug %}" style="background:#FFFFFF;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.25rem 1rem;text-align:center;transition:all .2s;display:block;box-shadow:0 1px 4px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor='var(--gold-d)'" onmouseout="this.style.borderColor='var(--page-border)'">
+        {% if cat.image %}
+        <img src="{{ cat.image.url }}" alt="{{ cat.name }}" style="width:48px;height:48px;object-fit:cover;border-radius:50%;margin:0 auto 0.6rem;">
+        {% else %}
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 0.6rem;font-size:1.3rem;">🏷️</div>
+        {% endif %}
+        <div style="font-size:0.82rem;font-weight:600;color:var(--page-text);">{{ cat.name }}</div>
+        <div style="font-size:0.72rem;color:var(--page-text-d);margin-top:.2rem;">{{ cat.active_product_count }} products</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Featured Products -->
+  {% if featured_products %}
+  <div style="margin-bottom:3rem;">
+    <div class="section-head">
+      <div>
+        <div class="section-title">⭐ Featured Products</div>
+        <div class="gold-bar"></div>
+      </div>
+      <a href="{% url 'store:product_list' %}" class="section-link">View all →</a>
+    </div>
+    <div class="product-grid">
+      {% for product in featured_products %}
+        {% include "store/partials/product_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Latest Products -->
+  <div>
+    <div class="section-head">
+      <div>
+        <div class="section-title">🆕 New Arrivals</div>
+        <div class="gold-bar"></div>
+      </div>
+      <a href="{% url 'store:product_list' %}" class="section-link">View all →</a>
+    </div>
+    {% if latest_products %}
+    <div class="product-grid">
+      {% for product in latest_products %}
+        {% include "store/partials/product_card.html" %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:4rem;color:var(--text-d);">
+      <div style="font-size:3rem;margin-bottom:1rem;">📦</div>
+      <div style="font-size:1rem;font-weight:600;color:var(--page-text-m);">Products coming soon</div>
+      <div style="font-size:.85rem;margin-top:.5rem;color:var(--page-text-d);">Add products from the admin panel to get started.</div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

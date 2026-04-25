@@ -1,0 +1,57 @@
+{% extends "store/base_store.html" %}
+{% block title %}{{ category.name }} — AlphaCue Imports{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <div class="breadcrumb">
+    <a href="{% url 'store:homepage' %}">Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'store:product_list' %}">Shop</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ category.name }}</span>
+  </div>
+
+  <!-- Category header -->
+  <div style="background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.75rem;margin-bottom:2rem;display:flex;align-items:center;gap:1.5rem;">
+    {% if category.image %}
+      <img src="{{ category.image.url }}" alt="{{ category.name }}" style="width:72px;height:72px;object-fit:cover;border-radius:50%;border:2px solid var(--gold-d);">
+    {% else %}
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(201,168,76,0.1);border:2px solid var(--gold-d);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0;">🏷️</div>
+    {% endif %}
+    <div>
+      <h1 style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:var(--gold);">{{ category.name }}</h1>
+      {% if category.description %}
+        <p style="color:var(--page-text-m);font-size:.875rem;margin-top:.35rem;">{{ category.description }}</p>
+      {% endif %}
+      <div style="font-size:.78rem;color:var(--page-text-d);margin-top:.35rem;">{{ total_count }} product{{ total_count|pluralize }}</div>
+    </div>
+  </div>
+
+  <!-- Sort bar -->
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+    <span style="font-size:.8rem;color:var(--page-text-m);">Sort:</span>
+    {% for val, label in sort_options %}
+    <a href="?sort={{ val }}" style="padding:.3rem .8rem;border-radius:20px;font-size:.78rem;font-weight:600;border:1px solid;transition:all .2s;
+       {% if current_sort == val %}background:var(--gold-dim);border-color:var(--gold-d);color:var(--gold-l){% else %}background:transparent;border-color:var(--black-e);color:var(--text-m){% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if products %}
+    <div class="product-grid">
+      {% for product in products %}
+        {% include "store/partials/product_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="text-align:center;padding:5rem 2rem;color:var(--text-d);">
+      <div style="font-size:3rem;margin-bottom:1rem;">📦</div>
+      <div style="font-size:1rem;color:var(--text-m);font-weight:600;">No products in this category yet</div>
+      <a href="{% url 'store:product_list' %}" class="btn btn-outline-gold" style="margin-top:1.5rem;">Browse All Products</a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

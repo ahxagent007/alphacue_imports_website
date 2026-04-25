@@ -1,0 +1,174 @@
+{% extends "affiliate/base.html" %}
+
+{% block title %}Become an Affiliate — AlphaCue Imports{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>Affiliate Application</h1>
+  <p>Join the AlphaCue affiliate program and earn commissions on every delivered order.</p>
+</div>
+<hr class="gold-divider">
+
+<div style="display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: start;">
+
+  <!-- Application Form -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Your Application</div>
+      <div class="card-subtitle">All fields marked required must be completed.</div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="form-grid">
+        <!-- Full Name -->
+        <div class="form-group">
+          <label class="form-label" for="{{ form.full_name.id_for_label }}">
+            Full Name <span style="color:var(--gold)">*</span>
+          </label>
+          {{ form.full_name }}
+          {% if form.full_name.errors %}
+            <span class="invalid-feedback">{{ form.full_name.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        <!-- Phone -->
+        <div class="form-group">
+          <label class="form-label" for="{{ form.phone_number.id_for_label }}">
+            Phone Number <span style="color:var(--gold)">*</span>
+          </label>
+          {{ form.phone_number }}
+          {% if form.phone_number.errors %}
+            <span class="invalid-feedback">{{ form.phone_number.errors.0 }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- NID -->
+      <div class="form-group">
+        <label class="form-label" for="{{ form.nid_number.id_for_label }}">National ID (NID)</label>
+        {{ form.nid_number }}
+        <div class="form-text">{{ form.nid_number.help_text }}</div>
+        {% if form.nid_number.errors %}
+          <span class="invalid-feedback">{{ form.nid_number.errors.0 }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Promotion plan -->
+      <div class="form-group">
+        <label class="form-label" for="{{ form.how_will_promote.id_for_label }}">
+          Promotion Plan <span style="color:var(--gold)">*</span>
+        </label>
+        {{ form.how_will_promote }}
+        <div class="form-text">{{ form.how_will_promote.help_text }}</div>
+        {% if form.how_will_promote.errors %}
+          <span class="invalid-feedback">{{ form.how_will_promote.errors.0 }}</span>
+        {% endif %}
+      </div>
+
+      <div class="form-grid">
+        <!-- Payment method -->
+        <div class="form-group">
+          <label class="form-label" for="{{ form.preferred_payment_method.id_for_label }}">
+            Payment Method <span style="color:var(--gold)">*</span>
+          </label>
+          {{ form.preferred_payment_method }}
+          {% if form.preferred_payment_method.errors %}
+            <span class="invalid-feedback">{{ form.preferred_payment_method.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        <!-- Payment account -->
+        <div class="form-group">
+          <label class="form-label" for="{{ form.payment_account_number.id_for_label }}">
+            Account Number
+          </label>
+          {{ form.payment_account_number }}
+          <div class="form-text">{{ form.payment_account_number.help_text }}</div>
+          {% if form.payment_account_number.errors %}
+            <span class="invalid-feedback">{{ form.payment_account_number.errors.0 }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Non-field errors -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
+
+      <div style="display:flex; gap:1rem; margin-top:0.5rem; flex-wrap:wrap;">
+        <button type="submit" class="btn btn-gold">Submit Application</button>
+        <a href="/" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sidebar: How it works -->
+  <div>
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="card-header">
+        <div class="card-title" style="font-size:1rem;">How It Works</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-icon active">1</div>
+          <div class="step-content">
+            <div class="step-title">Apply</div>
+            <div class="step-desc">Submit your application with your promotion plan.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">2</div>
+          <div class="step-content">
+            <div class="step-title">Get Approved</div>
+            <div class="step-desc">Admin reviews within 1–2 business days.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">3</div>
+          <div class="step-content">
+            <div class="step-title">Share Your Link</div>
+            <div class="step-desc">You get a unique referral link to share anywhere.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">4</div>
+          <div class="step-content">
+            <div class="step-title">Earn Commission</div>
+            <div class="step-desc">Earn on every order that gets delivered.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon" style="padding-bottom:0">5</div>
+          <div class="step-content">
+            <div class="step-title">Withdraw Earnings</div>
+            <div class="step-desc">Cash out via bKash or Nagad anytime.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" style="font-size:1rem;">Requirements</div>
+      </div>
+      <ul style="color:var(--text-muted); font-size:0.875rem; padding-left:1.25rem; line-height:2;">
+        <li>Must be a registered user</li>
+        <li>Valid Bangladeshi phone number</li>
+        <li>Active bKash or Nagad account</li>
+        <li>Clear promotion plan</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    div[style*="grid-template-columns: 1fr 340px"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}AlphaCue Imports{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:#C9A84C; --gold-l:#E2C97E; --gold-d:#A07830; --gold-dim:rgba(201,168,76,0.15);
+      --black:#0A0A0A; --black-s:#141414; --black-c:#1A1A1A; --black-b:#252525; --black-e:#2E2E2E;
+      --text:#F5F0E8; --text-m:#9A9188; --text-d:#5A5550;
+      /* Page area (white bg) colours */
+      --page-bg:#FFFFFF; --page-card:#F8F6F2; --page-border:#E8E4DC;
+      --page-text:#1A1A1A; --page-text-m:#5A5450; --page-text-d:#9A9188;
+      --success:#2E7D52; --danger:#8B2020;
+      --radius:10px; --radius-sm:6px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:#FFFFFF;color:#1A1A1A;font-family:'Inter',sans-serif;min-height:100vh;line-height:1.6}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+
+    /* ── Topbar ── */
+    .topbar{background:var(--gold-d);padding:0.35rem 2rem;text-align:center;font-size:0.78rem;color:var(--black);font-weight:600;letter-spacing:0.04em}
+
+    /* ── Navbar ── */
+    .navbar{background:var(--black-s);border-bottom:1px solid var(--black-b);position:sticky;top:0;z-index:200}
+    .nav-inner{max-width:1280px;margin:0 auto;padding:0 1.5rem;height:68px;display:flex;align-items:center;gap:2rem}
+    .nav-brand{font-family:'Cinzel',serif;font-size:1.25rem;font-weight:700;color:var(--gold);white-space:nowrap;flex-shrink:0}
+    .nav-brand span{color:var(--text)}
+    .nav-search{flex:1;max-width:480px;position:relative}
+    .nav-search input{width:100%;background:var(--black-c);border:1px solid var(--black-e);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:0.9rem;padding:0.6rem 1rem 0.6rem 2.5rem;outline:none;transition:border-color .2s}
+    .nav-search input:focus{border-color:var(--gold-d)}
+    .nav-search input::placeholder{color:var(--text-d)}
+    .nav-search-icon{position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-d);font-size:0.9rem}
+    .nav-actions{display:flex;align-items:center;gap:1rem;margin-left:auto}
+    .nav-link{color:var(--text-m);font-size:0.875rem;font-weight:500;transition:color .2s;white-space:nowrap}
+    .nav-link:hover{color:var(--gold-l)}
+    .cart-btn{position:relative;background:var(--gold-dim);border:1px solid var(--gold-d);border-radius:8px;padding:0.5rem 1rem;color:var(--gold-l);font-size:0.875rem;font-weight:600;display:flex;align-items:center;gap:0.5rem;transition:all .2s;cursor:pointer}
+    .cart-btn:hover{background:rgba(201,168,76,0.2)}
+    .cart-count{background:var(--gold);color:var(--black);border-radius:50%;width:18px;height:18px;font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+    /* ── Category nav strip ── */
+    .cat-strip{background:var(--black-c);border-bottom:1px solid var(--black-b)}
+    .cat-strip-inner{max-width:1280px;margin:0 auto;padding:0 1.5rem;display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+    .cat-strip-inner::-webkit-scrollbar{display:none}
+    .cat-link{padding:0.75rem 1.1rem;color:var(--text-m);font-size:0.8rem;font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
+    .cat-link:hover,.cat-link.active{color:var(--gold-l);border-bottom-color:var(--gold)}
+
+    /* ── Page wrapper ── */
+    .container{max-width:1280px;margin:0 auto;padding:0 1.5rem}
+    .page-content{padding:2.5rem 0 4rem}
+
+    /* ── Section heading ── */
+    .section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1.5rem}
+    .section-title{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold);letter-spacing:0.04em}
+    .section-link{font-size:0.8rem;color:var(--page-text-m);transition:color .2s}
+    .section-link:hover{color:var(--gold-l)}
+    .gold-bar{height:2px;width:48px;background:linear-gradient(90deg,var(--gold-d),var(--gold));border-radius:2px;margin-bottom:1rem}
+
+    /* ── Product grid ── */
+    .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1.25rem}
+
+    /* ── Product card ── */
+    .pcard{background:#FFFFFF;border:1px solid var(--page-border);box-shadow:0 1px 4px rgba(0,0,0,0.06);border-radius:var(--radius);overflow:hidden;transition:transform .2s,border-color .2s;display:flex;flex-direction:column}
+    .pcard:hover{transform:translateY(-3px);border-color:var(--gold-d);box-shadow:0 4px 16px rgba(201,168,76,0.12)}
+    .pcard-img{aspect-ratio:1/1;overflow:hidden;background:#F0EDE8;position:relative}
+    .pcard-img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+    .pcard:hover .pcard-img img{transform:scale(1.04)}
+    .pcard-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#B0A898;font-size:2rem}
+    .pcard-badge{position:absolute;top:8px;left:8px;background:var(--danger);color:#fff;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:0.04em}
+    .pcard-body{padding:0.9rem;display:flex;flex-direction:column;flex:1}
+    .pcard-cat{font-size:0.7rem;color:var(--page-text-d);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem}
+    .pcard-name{font-size:0.9rem;font-weight:600;color:var(--page-text);line-height:1.35;margin-bottom:auto}
+    .pcard-name:hover{color:var(--gold-l)}
+    .pcard-price{margin-top:0.75rem;display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap}
+    .pcard-price-main{font-size:1rem;font-weight:700;color:var(--gold-l)}
+    .pcard-price-old{font-size:0.8rem;color:var(--page-text-d);text-decoration:line-through}
+    .pcard-footer{padding:0 0.9rem 0.9rem}
+    .btn-add-cart{width:100%;padding:0.55rem;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:var(--black);font-size:0.82rem;font-weight:700;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;letter-spacing:0.02em}
+    .btn-add-cart:hover{background:linear-gradient(135deg,var(--gold),var(--gold-l));transform:translateY(-1px)}
+    .btn-add-cart:disabled{background:#E8E4DC;color:#9A9188;cursor:not-allowed;transform:none}
+    .out-of-stock-label{text-align:center;font-size:0.78rem;color:var(--page-text-d);padding:0.5rem 0}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;gap:0.5rem;padding:0.7rem 1.5rem;border:none;border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:0.875rem;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:0.02em;text-decoration:none}
+    .btn-gold{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:var(--black)}
+    .btn-gold:hover{background:linear-gradient(135deg,var(--gold),var(--gold-l));transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,168,76,.25)}
+    .btn-outline-gold{background:transparent;border:1px solid var(--gold-d);color:var(--gold-l)}
+    .btn-outline-gold:hover{background:var(--gold-dim)}
+    .btn-ghost{background:transparent;border:1px solid var(--page-border);color:var(--page-text-m)}
+    .btn-ghost:hover{border-color:var(--gold-d);color:var(--gold-l)}
+
+    /* ── Breadcrumb ── */
+    .breadcrumb{display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--page-text-d);margin-bottom:1.5rem;flex-wrap:wrap}
+    .breadcrumb a{color:var(--page-text-m);transition:color .2s}
+    .breadcrumb a:hover{color:var(--gold-l)}
+    .breadcrumb-sep{color:var(--page-text-d)}
+
+    /* ── Footer ── */
+    .footer{background:var(--black-s);border-top:1px solid var(--black-b);padding:2.5rem 0 1.5rem;margin-top:4rem}
+    .footer-inner{max-width:1280px;margin:0 auto;padding:0 1.5rem;display:grid;grid-template-columns:2fr 1fr 1fr;gap:3rem}
+    .footer-brand{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:0.75rem}
+    .footer-desc{font-size:0.85rem;color:var(--text-m);line-height:1.7}
+    .footer-heading{font-size:0.75rem;font-weight:700;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.85rem}
+    .footer-links{display:flex;flex-direction:column;gap:0.5rem}
+    .footer-links a{font-size:0.85rem;color:var(--text-m);transition:color .2s}
+    .footer-links a:hover{color:var(--gold-l)}
+    .footer-bottom{max-width:1280px;margin:2rem auto 0;padding:1rem 1.5rem 0;border-top:1px solid var(--black-b);text-align:center;font-size:0.78rem;color:var(--text-d)}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--black-c);border:1px solid var(--gold-d);border-radius:var(--radius);padding:0.85rem 1.25rem;color:var(--text);font-size:0.875rem;font-weight:500;z-index:9999;transform:translateX(120%);transition:transform .3s;max-width:300px;display:flex;align-items:center;gap:0.75rem}
+    #toast.show{transform:translateX(0)}
+    #toast .toast-icon{color:var(--gold);font-size:1.1rem}
+
+    /* ── Alerts ── */
+    .alert{padding:.85rem 1.1rem;border-radius:var(--radius-sm);font-size:.875rem;margin-bottom:1.25rem;border-left:3px solid;display:flex;align-items:flex-start;gap:.6rem}
+    .alert-success{background:rgba(46,125,82,.08);border-color:#2E7D52;color:#1A6640}
+    .alert-danger{background:rgba(139,32,32,.07);border-color:#8B2020;color:#8B2020}
+    .alert-warning{background:rgba(201,168,76,.08);border-color:var(--gold-d);color:#7A5C1A}
+
+    /* ── Responsive ── */
+    @media(max-width:768px){
+      .nav-search{display:none}
+      .footer-inner{grid-template-columns:1fr}
+      .product-grid{grid-template-columns:repeat(2,1fr);gap:.9rem}
+    }
+    @media(max-width:480px){
+      .product-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
+      .pcard-body{padding:.7rem}
+      .pcard-footer{padding:0 .7rem .7rem}
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="topbar">🚚 Free delivery on orders above ৳2000 · Cash on Delivery available across Bangladesh</div>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="{% url 'store:homepage' %}" class="nav-brand">AlphaCue <span>Imports</span></a>
+
+    <div class="nav-search">
+      <span class="nav-search-icon">🔍</span>
+      <input type="text" placeholder="Search products...">
+    </div>
+
+    <div class="nav-actions">
+      <a href="{% url 'store:order_track' %}" class="nav-link">Track Order</a>
+      {% if user.is_authenticated %}
+        {% if user.affiliate_profile.status == 'approved' %}
+          <a href="{% url 'affiliate:application_status' %}" class="nav-link">My Affiliate</a>
+        {% else %}
+          <a href="{% url 'affiliate:affiliate_apply' %}" class="nav-link">Earn with Us</a>
+        {% endif %}
+        <a href="/accounts/logout/" class="nav-link">Logout</a>
+        {% if user.is_staff %}<a href="{% url 'store:manage_order_list' %}" class="nav-link" style="color:var(--gold-l);">Manage Orders</a>{% endif %}
+      {% else %}
+        <a href="/accounts/login/" class="nav-link">Login</a>
+        <a href="{% url 'affiliate:affiliate_apply' %}" class="nav-link" style="color:var(--gold-l)">Earn with Us</a>
+      {% endif %}
+
+      <a href="{% url 'store:cart' %}" class="cart-btn">
+        🛒 Cart
+        <span class="cart-count" id="cart-count">{{ cart|length }}</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<div class="cat-strip">
+  <div class="cat-strip-inner">
+    <a href="{% url 'store:product_list' %}"
+       class="cat-link {% if request.resolver_match.url_name == 'product_list' and not request.GET.category %}active{% endif %}">
+      All Products
+    </a>
+    {% for cat in categories %}
+    <a href="{% url 'store:category_detail' cat.slug %}"
+       class="cat-link {% if request.resolver_match.kwargs.slug == cat.slug %}active{% endif %}">
+      {{ cat.name }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div id="toast">
+  <span class="toast-icon">✓</span>
+  <span id="toast-msg">Item added to cart</span>
+</div>
+
+{% if messages %}
+<div class="container" style="padding-top:1.25rem;">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'warning' }}">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">AlphaCue Imports</div>
+      <p class="footer-desc">Quality imported products delivered to your doorstep across Bangladesh. Cash on Delivery available.</p>
+    </div>
+    <div>
+      <div class="footer-heading">Shop</div>
+      <div class="footer-links">
+        <a href="{% url 'store:product_list' %}">All Products</a>
+        {% for cat in categories %}
+        <a href="{% url 'store:category_detail' cat.slug %}">{{ cat.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <div class="footer-heading">Account</div>
+      <div class="footer-links">
+        <a href="{% url 'store:order_track' %}" class="nav-link">Track Order</a>
+      {% if user.is_authenticated %}
+          <a href="/accounts/logout/">Logout</a>
+        {% else %}
+          <a href="/accounts/login/">Login</a>
+        {% endif %}
+        <a href="{% url 'affiliate:affiliate_apply' %}">Become an Affiliate</a>
+        <a href="/admin/">Admin Panel</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © {% now "Y" %} AlphaCue Imports. All rights reserved. · Cash on Delivery · Bangladesh
+  </div>
+</footer>
+
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function updateCartCount(count) {
+  const el = document.getElementById('cart-count');
+  if (el) el.textContent = count;
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

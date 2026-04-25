@@ -1,0 +1,36 @@
+{% with variant=product.default_variant %}
+<div class="pcard">
+  <a href="{{ product.get_absolute_url }}" class="pcard-img">
+    {% if product.primary_image_url %}
+      <img src="{{ product.primary_image_url }}" alt="{{ product.name }}" loading="lazy">
+    {% else %}
+      <div class="pcard-img-placeholder">📦</div>
+    {% endif %}
+    {% if variant and variant.discount_percentage %}
+      <span class="pcard-badge">{{ variant.discount_percentage }}% OFF</span>
+    {% endif %}
+    {% if not product.is_in_stock %}
+      <span class="pcard-badge" style="background:var(--text-d);">Out of Stock</span>
+    {% endif %}
+  </a>
+
+  <div class="pcard-body">
+    <div class="pcard-cat">{{ product.category.name }}</div>
+    <a href="{{ product.get_absolute_url }}" class="pcard-name">{{ product.name }}</a>
+    <div class="pcard-price">
+      <span class="pcard-price-main">{{ product.display_price }}</span>
+      {% if variant and variant.compare_price %}
+        <span class="pcard-price-old">৳{{ variant.compare_price|floatformat:0 }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="pcard-footer">
+    {% if product.is_in_stock %}
+      <a href="{{ product.get_absolute_url }}" class="btn-add-cart">View & Order</a>
+    {% else %}
+      <div class="out-of-stock-label">Out of Stock</div>
+    {% endif %}
+  </div>
+</div>
+{% endwith %}

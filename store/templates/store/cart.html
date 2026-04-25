@@ -1,0 +1,253 @@
+{% extends "store/base_store.html" %}
+{% block title %}Your Cart — AlphaCue Imports{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cart-layout{display:grid;grid-template-columns:1fr 340px;gap:2rem;align-items:start}
+  .cart-table{width:100%;border-collapse:collapse}
+  .cart-table th{font-size:.72rem;font-weight:700;color:var(--gold-d);text-transform:uppercase;letter-spacing:.08em;padding:.6rem .75rem;border-bottom:1px solid var(--page-border);text-align:left}
+  .cart-row{border-bottom:1px solid var(--page-border);transition:background .15s}
+  .cart-row:hover{background:rgba(201,168,76,0.04)}
+  .cart-row td{padding:.9rem .75rem;vertical-align:middle}
+  .cart-img{width:60px;height:60px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--black-b)}
+  .cart-img-placeholder{width:60px;height:60px;border-radius:var(--radius-sm);background:var(--black-b);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+  .cart-product-name{font-size:.875rem;font-weight:600;color:var(--page-text);line-height:1.3}
+  .cart-variant-name{font-size:.75rem;color:var(--page-text-m);margin-top:.2rem}
+  .cart-sku{font-size:.7rem;color:var(--page-text-d);margin-top:.15rem}
+
+  .qty-cell{display:flex;align-items:center;gap:0;border:1px solid var(--page-border);border-radius:var(--radius-sm);overflow:hidden;width:fit-content}
+  .qty-cell-btn{background:#F8F5EE;border:none;color:var(--page-text);width:30px;height:34px;font-size:1rem;cursor:pointer;transition:background .2s}
+  .qty-cell-btn:hover{background:#EDE9E0}
+  .qty-cell-input{width:40px;height:34px;background:#FFFFFF;border:none;border-left:1px solid var(--page-border);border-right:1px solid var(--page-border);color:var(--page-text);text-align:center;font-size:.85rem;font-weight:600;outline:none}
+
+  .remove-btn{background:transparent;border:none;color:var(--page-text-d);cursor:pointer;font-size:.8rem;padding:.3rem .5rem;border-radius:4px;transition:color .2s}
+  .remove-btn:hover{color:#E07070}
+
+  .summary-card{background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.5rem;position:sticky;top:90px}
+  .summary-row{display:flex;justify-content:space-between;align-items:center;font-size:.875rem;padding:.5rem 0;border-bottom:1px solid var(--page-border)}
+  .summary-row:last-of-type{border-bottom:none}
+  .summary-label{color:var(--page-text-m)}
+  .summary-value{color:var(--page-text);font-weight:600}
+  .summary-total{font-size:1.1rem;font-weight:700;color:var(--gold-l);font-family:'Cinzel',serif}
+
+  .zone-toggle{display:flex;border:1px solid var(--page-border);border-radius:8px;overflow:hidden;margin:.75rem 0}
+  .zone-btn{flex:1;padding:.55rem;font-size:.8rem;font-weight:600;border:none;cursor:pointer;transition:all .2s;text-align:center}
+  .zone-btn.active{background:var(--gold-dim);color:var(--gold-l);border-color:var(--gold-d)}
+  .zone-btn.inactive{background:#FFFFFF;color:var(--page-text-m)}
+
+  .empty-cart{text-align:center;padding:5rem 2rem}
+
+  @media(max-width:768px){
+    .cart-layout{grid-template-columns:1fr}
+    .summary-card{position:static}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <div class="breadcrumb">
+    <a href="{% url 'store:homepage' %}">Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Shopping Cart</span>
+  </div>
+
+  <h1 style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:var(--gold);margin-bottom:1.75rem;">
+    Your Cart <span style="font-size:.9rem;color:var(--text-m);font-family:'Inter',sans-serif;font-weight:400;">({{ cart|length }} item{{ cart|length|pluralize }})</span>
+  </h1>
+
+  {% if cart_items %}
+  <div class="cart-layout">
+
+    <!-- Items table -->
+    <div>
+      <div style="background:#FFFFFF;border:1px solid var(--page-border);border-radius:var(--radius);overflow:hidden;">
+        <table class="cart-table">
+          <thead>
+            <tr>
+              <th colspan="2">Product</th>
+              <th>Price</th>
+              <th>Qty</th>
+              <th>Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cart-tbody">
+            {% for item in cart_items %}
+            <tr class="cart-row" id="row-{{ item.variant_id }}">
+              <!-- Image + name -->
+              <td style="width:70px;padding-right:0;">
+                {% if item.image_url %}
+                  <img src="{{ item.image_url }}" alt="{{ item.product_name }}" class="cart-img">
+                {% else %}
+                  <div class="cart-img-placeholder">📦</div>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'store:product_detail' item.slug %}" class="cart-product-name" style="display:block;">{{ item.product_name }}</a>
+                <div class="cart-variant-name">{{ item.variant_name }}</div>
+                <div class="cart-sku">SKU: {{ item.sku }}</div>
+              </td>
+              <!-- Price -->
+              <td style="white-space:nowrap;">
+                <span style="color:var(--gold-l);font-weight:600;">{{ item.price_fmt }}</span>
+              </td>
+              <!-- Qty -->
+              <td>
+                <div class="qty-cell">
+                  <button class="qty-cell-btn" onclick="adjustQty({{ item.variant_id }}, -1)">−</button>
+                  <input type="number" class="qty-cell-input" id="qty-{{ item.variant_id }}"
+                         value="{{ item.quantity }}" min="1" max="99"
+                         onchange="setQty({{ item.variant_id }}, this.value)">
+                  <button class="qty-cell-btn" onclick="adjustQty({{ item.variant_id }}, 1)">+</button>
+                </div>
+              </td>
+              <!-- Line total -->
+              <td style="white-space:nowrap;">
+                <span style="font-weight:700;color:var(--text);" id="line-{{ item.variant_id }}">{{ item.line_total_fmt }}</span>
+              </td>
+              <!-- Remove -->
+              <td>
+                <button class="remove-btn" onclick="removeItem({{ item.variant_id }})" title="Remove">✕</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Continue shopping -->
+      <div style="margin-top:1rem;">
+        <a href="{% url 'store:product_list' %}" class="btn btn-ghost" style="font-size:.82rem;">← Continue Shopping</a>
+      </div>
+    </div>
+
+    <!-- Order summary -->
+    <div class="summary-card">
+      <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:1rem;">Order Summary</div>
+
+      <!-- Delivery zone toggle -->
+      <div style="font-size:.78rem;font-weight:700;color:var(--gold-l);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">Delivery Area</div>
+      <div class="zone-toggle">
+        <button class="zone-btn {% if is_inside_dhaka %}active{% else %}inactive{% endif %}"
+                id="zone-dhaka" onclick="setZone(true)">
+          📍 Inside Dhaka<br><small style="font-weight:400;">৳{{ site_settings.delivery_fee_inside_dhaka|floatformat:0 }}</small>
+        </button>
+        <button class="zone-btn {% if not is_inside_dhaka %}active{% else %}inactive{% endif %}"
+                id="zone-outside" onclick="setZone(false)">
+          🗺️ Outside Dhaka<br><small style="font-weight:400;">৳{{ site_settings.delivery_fee_outside_dhaka|floatformat:0 }}</small>
+        </button>
+      </div>
+
+      <div class="summary-row" style="margin-top:.5rem;">
+        <span class="summary-label">Subtotal</span>
+        <span class="summary-value" id="summary-subtotal">৳{{ subtotal|floatformat:0 }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Delivery Fee</span>
+        <span class="summary-value" id="summary-delivery">৳{{ delivery_fee|floatformat:0 }}</span>
+      </div>
+      <div class="summary-row" style="border-top:1px solid var(--black-e);margin-top:.5rem;padding-top:.75rem;">
+        <span class="summary-label" style="font-weight:700;color:var(--text);">Total</span>
+        <span class="summary-total" id="summary-total">৳{{ grand_total|floatformat:0 }}</span>
+      </div>
+
+      <a href="{% url 'store:checkout' %}" class="btn btn-gold" style="width:100%;justify-content:center;margin-top:1.25rem;padding:.9rem;font-size:.95rem;">
+        Proceed to Checkout →
+      </a>
+
+      <div style="margin-top:1rem;padding:.75rem;background:#EDE9E0;border-radius:var(--radius-sm);font-size:.78rem;color:var(--page-text-m);text-align:center;line-height:1.6;">
+        💵 Cash on Delivery<br>
+        🔒 Safe & Secure Ordering
+      </div>
+    </div>
+
+  </div>
+
+  {% else %}
+  <!-- Empty cart -->
+  <div class="empty-cart">
+    <div style="font-size:4rem;margin-bottom:1.25rem;">🛒</div>
+    <h2 style="font-family:'Cinzel',serif;font-size:1.25rem;color:var(--gold);margin-bottom:.6rem;">Your cart is empty</h2>
+    <p style="color:var(--page-text-m);font-size:.9rem;margin-bottom:1.75rem;">Looks like you haven't added anything yet.</p>
+    <a href="{% url 'store:product_list' %}" class="btn btn-gold">Start Shopping</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function post(url, data) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
+
+function adjustQty(variantId, delta) {
+  const input = document.getElementById('qty-' + variantId);
+  const newQty = Math.max(1, parseInt(input.value) + delta);
+  input.value = newQty;
+  setQty(variantId, newQty);
+}
+
+function setQty(variantId, quantity) {
+  quantity = Math.max(1, parseInt(quantity));
+  post("{% url 'store:cart_update' %}", {variant_id: variantId, quantity})
+    .then(data => {
+      if (data.success) {
+        updateSummary(data);
+        updateCartCount(data.cart_count);
+        // Update line total
+        const lineEl = document.getElementById('line-' + variantId);
+        if (lineEl) {
+          // Recalculate line from price * qty
+          const priceEl = document.querySelector(`#row-${variantId} td:nth-child(3) span`);
+          if (priceEl) {
+            const price = parseFloat(priceEl.textContent.replace('৳','').replace(/,/g,''));
+            lineEl.textContent = '৳' + Math.round(price * quantity).toLocaleString();
+          }
+        }
+      }
+    });
+}
+
+function removeItem(variantId) {
+  post("{% url 'store:cart_remove' %}", {variant_id: variantId})
+    .then(data => {
+      if (data.success) {
+        const row = document.getElementById('row-' + variantId);
+        if (row) row.remove();
+        updateSummary(data);
+        updateCartCount(data.cart_count);
+        if (data.cart_empty) {
+          location.reload();
+        }
+      }
+    });
+}
+
+function setZone(insideDhaka) {
+  post("{% url 'store:cart_delivery_zone' %}", {inside_dhaka: insideDhaka})
+    .then(data => {
+      if (data.success) {
+        updateSummary(data);
+        document.getElementById('zone-dhaka').className   = 'zone-btn ' + (insideDhaka ? 'active' : 'inactive');
+        document.getElementById('zone-outside').className = 'zone-btn ' + (!insideDhaka ? 'active' : 'inactive');
+      }
+    });
+}
+
+function updateSummary(data) {
+  if (data.subtotal)     document.getElementById('summary-subtotal').textContent = '৳' + parseFloat(data.subtotal).toLocaleString('en', {maximumFractionDigits:0});
+  if (data.delivery_fee) document.getElementById('summary-delivery').textContent = data.delivery_fee_fmt || ('৳' + parseFloat(data.delivery_fee).toLocaleString('en', {maximumFractionDigits:0}));
+  if (data.grand_total)  document.getElementById('summary-total').textContent    = data.grand_total_fmt  || ('৳' + parseFloat(data.grand_total).toLocaleString('en', {maximumFractionDigits:0}));
+}
+</script>
+{% endblock %}

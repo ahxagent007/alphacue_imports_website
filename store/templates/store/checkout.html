@@ -1,0 +1,225 @@
+{% extends "store/base_store.html" %}
+{% block title %}Checkout — AlphaCue Imports{% endblock %}
+
+{% block extra_head %}
+<style>
+  .checkout-layout{display:grid;grid-template-columns:1fr 360px;gap:2rem;align-items:start}
+  .form-section{background:#fff;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.75rem;margin-bottom:1.25rem}
+  .form-section-title{font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:var(--gold-d);letter-spacing:.04em;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--page-border)}
+  .form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .form-group{margin-bottom:1.1rem}
+  .form-label{display:block;font-size:.78rem;font-weight:700;color:#5A5450;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.4rem}
+  .form-label span{color:var(--danger);margin-left:2px}
+  .form-input{width:100%;background:#FAFAF8;border:1px solid var(--page-border);border-radius:var(--radius-sm);color:#1A1A1A;font-family:'Inter',sans-serif;font-size:.9rem;padding:.65rem .9rem;outline:none;transition:border-color .2s,box-shadow .2s}
+  .form-input:focus{border-color:var(--gold-d);box-shadow:0 0 0 3px rgba(160,120,48,.1)}
+  textarea.form-input{resize:vertical}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239A9188' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;padding-right:2rem}
+  .invalid-feedback{font-size:.78rem;color:var(--danger);margin-top:.25rem;display:block}
+  .field-error .form-input{border-color:var(--danger)}
+
+  .order-summary{background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius);padding:1.5rem;position:sticky;top:90px}
+  .summary-title{font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:var(--gold-d);margin-bottom:1.1rem}
+  .summary-item{display:flex;gap:.75rem;padding:.65rem 0;border-bottom:1px solid var(--page-border);align-items:center}
+  .summary-item:last-of-type{border-bottom:none}
+  .summary-item-img{width:46px;height:46px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--page-border);flex-shrink:0}
+  .summary-item-img-ph{width:46px;height:46px;background:#EDE9E0;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+  .summary-item-name{font-size:.8rem;font-weight:600;color:#1A1A1A;line-height:1.3}
+  .summary-item-variant{font-size:.72rem;color:#9A9188;margin-top:.1rem}
+  .summary-item-price{font-size:.82rem;font-weight:700;color:var(--gold-d);margin-left:auto;white-space:nowrap;padding-left:.5rem}
+  .summary-divider{border:none;border-top:1px solid var(--page-border);margin:.75rem 0}
+  .summary-row{display:flex;justify-content:space-between;font-size:.85rem;margin:.35rem 0}
+  .summary-row-label{color:#5A5450}
+  .summary-row-value{font-weight:600;color:#1A1A1A}
+  .summary-total-row{display:flex;justify-content:space-between;margin-top:.75rem;padding-top:.75rem;border-top:2px solid var(--gold-d)}
+  .summary-total-label{font-weight:700;font-size:.95rem;color:#1A1A1A}
+  .summary-total-value{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold-d)}
+
+  .cod-badge{display:flex;align-items:center;gap:.6rem;background:#fff;border:1px solid var(--page-border);border-radius:var(--radius-sm);padding:.75rem 1rem;margin-top:1rem;font-size:.82rem;color:#5A5450}
+  .cod-icon{font-size:1.2rem}
+
+  @media(max-width:768px){
+    .checkout-layout{grid-template-columns:1fr}
+    .form-grid-2{grid-template-columns:1fr}
+    .order-summary{position:static}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container page-content">
+
+  <div class="breadcrumb">
+    <a href="{% url 'store:homepage' %}">Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'store:cart' %}">Cart</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Checkout</span>
+  </div>
+
+  <h1 style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:var(--gold-d);margin-bottom:1.75rem;">Checkout</h1>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="checkout-layout">
+
+      <!-- Left: Form -->
+      <div>
+
+        <!-- Contact Info -->
+        <div class="form-section">
+          <div class="form-section-title">📋 Contact Information</div>
+          <div class="form-grid-2">
+            <div class="form-group {% if form.customer_name.errors %}field-error{% endif %}">
+              <label class="form-label" for="{{ form.customer_name.id_for_label }}">
+                Full Name <span>*</span>
+              </label>
+              {{ form.customer_name }}
+              {% for err in form.customer_name.errors %}
+                <span class="invalid-feedback">{{ err }}</span>
+              {% endfor %}
+            </div>
+            <div class="form-group {% if form.customer_phone.errors %}field-error{% endif %}">
+              <label class="form-label" for="{{ form.customer_phone.id_for_label }}">
+                Phone Number <span>*</span>
+              </label>
+              {{ form.customer_phone }}
+              {% for err in form.customer_phone.errors %}
+                <span class="invalid-feedback">{{ err }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="form-group {% if form.customer_email.errors %}field-error{% endif %}">
+            <label class="form-label" for="{{ form.customer_email.id_for_label }}">Email Address</label>
+            {{ form.customer_email }}
+            {% for err in form.customer_email.errors %}
+              <span class="invalid-feedback">{{ err }}</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Delivery Info -->
+        <div class="form-section">
+          <div class="form-section-title">🚚 Delivery Information</div>
+
+          <div class="form-group {% if form.delivery_zone.errors %}field-error{% endif %}">
+            <label class="form-label" for="{{ form.delivery_zone.id_for_label }}">
+              Delivery Area <span>*</span>
+            </label>
+            {{ form.delivery_zone }}
+            {% for err in form.delivery_zone.errors %}
+              <span class="invalid-feedback">{{ err }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="form-group {% if form.address_line.errors %}field-error{% endif %}">
+            <label class="form-label" for="{{ form.address_line.id_for_label }}">
+              Address <span>*</span>
+            </label>
+            {{ form.address_line }}
+            {% for err in form.address_line.errors %}
+              <span class="invalid-feedback">{{ err }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="form-group {% if form.city.errors %}field-error{% endif %}">
+            <label class="form-label" for="{{ form.city.id_for_label }}">City <span>*</span></label>
+            {{ form.city }}
+            {% for err in form.city.errors %}
+              <span class="invalid-feedback">{{ err }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="{{ form.delivery_note.id_for_label }}">Delivery Note</label>
+            {{ form.delivery_note }}
+          </div>
+        </div>
+
+        <!-- Payment -->
+        <div class="form-section">
+          <div class="form-section-title">💵 Payment Method</div>
+          <div style="display:flex;align-items:center;gap:1rem;background:#F8F5EE;border:1px solid var(--page-border);border-radius:var(--radius-sm);padding:1rem;">
+            <span style="font-size:1.5rem;">💵</span>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:#1A1A1A;">Cash on Delivery</div>
+              <div style="font-size:.78rem;color:#9A9188;margin-top:.15rem;">Pay when your order arrives at your door.</div>
+            </div>
+            <div style="margin-left:auto;width:18px;height:18px;border-radius:50%;background:var(--gold);border:3px solid var(--gold-d);flex-shrink:0;"></div>
+          </div>
+        </div>
+
+        <!-- Non-field errors -->
+        {% if form.non_field_errors %}
+        <div style="background:rgba(139,32,32,.07);border-left:3px solid var(--danger);border-radius:var(--radius-sm);padding:.85rem 1rem;color:var(--danger);font-size:.875rem;margin-bottom:1rem;">
+          {{ form.non_field_errors.0 }}
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-gold" style="width:100%;justify-content:center;padding:1rem;font-size:1rem;">
+          Place Order — ৳<span id="btn-total">{{ grand_total|floatformat:0 }}</span>
+        </button>
+      </div>
+
+      <!-- Right: Order summary -->
+      <div class="order-summary">
+        <div class="summary-title">Order Summary</div>
+
+        {% for item in cart_items %}
+        <div class="summary-item">
+          {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="{{ item.product_name }}" class="summary-item-img">
+          {% else %}
+            <div class="summary-item-img-ph">📦</div>
+          {% endif %}
+          <div style="flex:1;min-width:0;">
+            <div class="summary-item-name">{{ item.product_name }}</div>
+            <div class="summary-item-variant">{{ item.variant_name }} × {{ item.quantity }}</div>
+          </div>
+          <div class="summary-item-price">৳{{ item.line_total|floatformat:0 }}</div>
+        </div>
+        {% endfor %}
+
+        <hr class="summary-divider">
+
+        <div class="summary-row">
+          <span class="summary-row-label">Subtotal</span>
+          <span class="summary-row-value">৳{{ subtotal|floatformat:0 }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-row-label">Delivery Fee</span>
+          <span class="summary-row-value" id="summary-delivery">৳{{ delivery_fee|floatformat:0 }}</span>
+        </div>
+
+        <div class="summary-total-row">
+          <span class="summary-total-label">Total</span>
+          <span class="summary-total-value" id="summary-total">৳{{ grand_total|floatformat:0 }}</span>
+        </div>
+
+        <div class="cod-badge">
+          <span class="cod-icon">💵</span>
+          <span>Cash on Delivery · Pay on arrival</span>
+        </div>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Update delivery fee display when zone changes
+const FEE_INSIDE  = {{ site_settings.delivery_fee_inside_dhaka|floatformat:0 }};
+const FEE_OUTSIDE = {{ site_settings.delivery_fee_outside_dhaka|floatformat:0 }};
+const SUBTOTAL    = {{ subtotal|floatformat:0 }};
+
+document.getElementById('id_delivery_zone').addEventListener('change', function() {
+  const inside = this.value === 'inside';
+  const fee    = inside ? FEE_INSIDE : FEE_OUTSIDE;
+  const total  = SUBTOTAL + fee;
+  document.getElementById('summary-delivery').textContent = '৳' + fee.toLocaleString();
+  document.getElementById('summary-total').textContent    = '৳' + total.toLocaleString();
+  document.getElementById('btn-total').textContent        = total.toLocaleString();
+});
+</script>
+{% endblock %}
