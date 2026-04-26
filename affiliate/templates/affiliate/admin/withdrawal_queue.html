@@ -1,0 +1,179 @@
+{% extends "affiliate/admin/base_admin.html" %}
+{% block title %}Withdrawal Queue{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div><h1>Withdrawal Processing</h1><p>Approve requests and record bKash/Nagad payments.</p></div>
+</div>
+
+{% if tab == 'approved' and approved_total > 0 %}
+<div style="background:#DBEAFE;border:1px solid #3B82F6;border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+  <div>
+    <span style="font-weight:700;color:#1D4ED8;font-size:.9rem;">💳 Total ready to pay out: </span>
+    <span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:#1D4ED8;">৳{{ approved_total|floatformat:0 }}</span>
+  </div>
+  <span style="font-size:.8rem;color:#1D4ED8;">Enter transaction IDs below after each payment.</span>
+</div>
+{% endif %}
+
+<div class="tab-row">
+  <a href="?tab=pending" class="tab-btn {% if tab == 'pending' %}active{% endif %}">
+    Pending <span class="tab-count {% if count_pending %}has-items{% endif %}">{{ count_pending }}</span>
+  </a>
+  <a href="?tab=approved" class="tab-btn {% if tab == 'approved' %}active{% endif %}">
+    Approved <span class="tab-count {% if count_approved %}has-items{% endif %}">{{ count_approved }}</span>
+  </a>
+  <a href="?tab=paid" class="tab-btn {% if tab == 'paid' %}active{% endif %}">
+    Paid <span class="tab-count ok">{{ count_paid }}</span>
+  </a>
+  <a href="?tab=rejected" class="tab-btn {% if tab == 'rejected' %}active{% endif %}">
+    Rejected <span class="tab-count">{{ count_rejected }}</span>
+  </a>
+</div>
+
+<form method="get" class="search-bar">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="text" name="q" value="{{ search }}" placeholder="Search name, account, transaction ID..." class="search-input">
+  <button type="submit" class="btn btn-gold">Search</button>
+  {% if search %}<a href="?tab={{ tab }}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  {% if page_obj %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Affiliate</th><th>Amount</th>
+        <th>Method & Account</th><th>Requested</th>
+        {% if tab == 'paid' %}<th>Transaction ID</th><th>Paid</th>
+        {% elif tab == 'rejected' %}<th>Reason</th>
+        {% endif %}
+        {% if tab != 'paid' and tab != 'rejected' %}<th>Actions</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for w in page_obj %}
+      <tr>
+        <td style="color:#9A9188;font-size:.75rem;">{{ w.pk }}</td>
+        <td>
+          <div style="font-weight:700;color:#1A1208;">{{ w.affiliate.full_name }}</div>
+          <div style="font-size:.72rem;color:#A07830;font-weight:600;">{{ w.affiliate.referral_code }}</div>
+          <div style="font-size:.7rem;color:#9A9188;">{{ w.affiliate.phone_number }}</div>
+        </td>
+        <td style="font-weight:700;color:#065F46;font-size:.95rem;">৳{{ w.amount|floatformat:0 }}</td>
+        <td>
+          <span class="pill pill-{{ w.payment_method }}">{{ w.get_payment_method_display }}</span>
+          <div style="font-size:.78rem;font-family:monospace;color:#5A5450;margin-top:.25rem;">{{ w.payment_account }}</div>
+        </td>
+        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ w.requested_at|date:"d M Y" }}</td>
+
+        {% if tab == 'paid' %}
+        <td style="font-size:.78rem;font-family:monospace;color:#1D4ED8;">{{ w.transaction_id }}</td>
+        <td style="font-size:.75rem;color:#9A9188;">{{ w.processed_at|date:"d M Y" }}</td>
+
+        {% elif tab == 'rejected' %}
+        <td style="font-size:.78rem;color:#991B1B;">{{ w.rejection_reason|default:"—" }}</td>
+
+        {% else %}
+        <td>
+          <div style="display:flex;flex-direction:column;gap:.35rem;">
+            {% if tab == 'pending' %}
+            <form method="post" action="{% url 'affiliate:withdrawal_action' w.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="approve">
+              <button class="btn btn-approve" style="width:100%;">✓ Approve</button>
+            </form>
+            <button class="btn btn-reject" style="width:100%;" onclick="openRejectModal({{ w.pk }}, '{{ w.affiliate.full_name|escapejs }}')">✗ Reject</button>
+
+            {% elif tab == 'approved' %}
+            <button class="btn btn-pay" style="width:100%;" onclick="openPayModal({{ w.pk }}, '{{ w.affiliate.full_name|escapejs }}', '{{ w.amount }}', '{{ w.get_payment_method_display }}', '{{ w.payment_account }}')">
+              💳 Mark Paid
+            </button>
+            {% endif %}
+          </div>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;">
+    {% if page_obj.has_previous %}<a href="?tab={{ tab }}&page={{ page_obj.previous_page_number }}&q={{ search }}" class="btn btn-ghost">← Prev</a>{% endif %}
+    <span style="padding:.4rem .75rem;font-size:.8rem;color:#5A5450;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?tab={{ tab }}&page={{ page_obj.next_page_number }}&q={{ search }}" class="btn btn-ghost">Next →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state"><div class="icon">💳</div><p>No withdrawals in this category.</p></div>
+  {% endif %}
+</div>
+
+<!-- Pay modal -->
+<div class="modal-overlay" id="pay-modal">
+  <div class="modal">
+    <div class="modal-title">Mark as Paid</div>
+    <p style="font-size:.85rem;color:#5A5450;margin-bottom:.6rem;">
+      Paying <strong id="pay-name"></strong><br>
+      Amount: <strong id="pay-amount" style="color:#065F46;"></strong> via <strong id="pay-method"></strong><br>
+      Account: <strong id="pay-account" style="font-family:monospace;"></strong>
+    </p>
+    <form method="post" id="pay-form" style="margin-top:1rem;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="mark_paid">
+      <label style="font-size:.75rem;font-weight:700;color:#5A5450;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem;">
+        Transaction ID *
+      </label>
+      <input type="text" name="transaction_id" class="modal-input" placeholder="e.g. TRX123456789" required>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closePayModal()">Cancel</button>
+        <button type="submit" class="btn btn-pay">Confirm Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reject modal -->
+<div class="modal-overlay" id="reject-modal">
+  <div class="modal">
+    <div class="modal-title">Reject Withdrawal</div>
+    <p style="font-size:.85rem;color:#5A5450;margin-bottom:1rem;">Rejecting request from <strong id="reject-name"></strong>. Provide a reason (optional):</p>
+    <form method="post" id="reject-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reject">
+      <textarea name="reason" class="modal-input" style="height:80px;resize:vertical;" placeholder="Reason for rejection..."></textarea>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeRejectModal()">Cancel</button>
+        <button type="submit" class="btn btn-reject">Confirm Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openPayModal(id, name, amount, method, account) {
+  document.getElementById('pay-name').textContent = name;
+  document.getElementById('pay-amount').textContent = '৳' + parseFloat(amount).toLocaleString();
+  document.getElementById('pay-method').textContent = method;
+  document.getElementById('pay-account').textContent = account;
+  document.getElementById('pay-form').action = `/affiliate/admin/withdrawals/${id}/action/`;
+  document.getElementById('pay-modal').classList.add('open');
+}
+function closePayModal() { document.getElementById('pay-modal').classList.remove('open'); }
+
+function openRejectModal(id, name) {
+  document.getElementById('reject-name').textContent = name;
+  document.getElementById('reject-form').action = `/affiliate/admin/withdrawals/${id}/action/`;
+  document.getElementById('reject-modal').classList.add('open');
+}
+function closeRejectModal() { document.getElementById('reject-modal').classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+</script>
+{% endblock %}

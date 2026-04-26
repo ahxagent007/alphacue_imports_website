@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dashboard_views, withdrawal_views, fraud_views, analytics_views, registration_views
+from . import views, dashboard_views, withdrawal_views, fraud_views, analytics_views, registration_views, admin_views
 
 app_name = 'affiliate'
 
@@ -36,4 +36,13 @@ urlpatterns = [
 
     # M8 — Admin analytics (staff only)
     path('affiliate/admin/analytics/', analytics_views.analytics_dashboard, name='analytics_dashboard'),
+
+    # Admin management hub
+    path('affiliate/admin/hub/', admin_views.admin_hub, name='admin_hub'),
+    path('affiliate/admin/affiliates/', admin_views.affiliate_queue, name='affiliate_queue'),
+    path('affiliate/admin/affiliates/<int:affiliate_id>/action/', admin_views.affiliate_action, name='affiliate_action'),
+    path('affiliate/admin/commissions/', admin_views.commission_queue, name='commission_queue'),
+    path('affiliate/admin/commissions/<int:commission_id>/action/', admin_views.commission_action, name='commission_action'),
+    path('affiliate/admin/withdrawals/', admin_views.withdrawal_queue, name='withdrawal_queue'),
+    path('affiliate/admin/withdrawals/<int:withdrawal_id>/action/', admin_views.withdrawal_action, name='withdrawal_action'),
 ]

@@ -224,3 +224,17 @@ def withdrawal_history(request):
     if err:
         return err
     return render(request, 'affiliate/withdrawal_placeholder.html', {'affiliate': affiliate})
+
+
+# ─── Context processor helper for admin sidebar badges ────────────────────────
+
+def admin_pending_counts(request):
+    """Inject badge counts into all admin templates."""
+    if not request.user.is_staff:
+        return {}
+    from .models import AffiliateProfile, Commission, WithdrawalRequest, FraudFlag
+    return {
+        'pending_affiliates_count':   AffiliateProfile.objects.filter(status=AffiliateProfile.STATUS_PENDING).count(),
+        'pending_commissions_count':  Commission.objects.filter(status=Commission.STATUS_PENDING, is_fraud_suspected=False).count(),
+        'pending_withdrawals_count':  WithdrawalRequest.objects.filter(status=WithdrawalRequest.STATUS_PENDING).count(),
+    }

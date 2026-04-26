@@ -1,0 +1,108 @@
+{% extends "affiliate/admin/base_admin.html" %}
+{% block title %}Commission Queue{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div><h1>Commission Management</h1><p>Approve, reject or investigate commissions.</p></div>
+</div>
+
+<div class="tab-row">
+  <a href="?tab=pending" class="tab-btn {% if tab == 'pending' %}active{% endif %}">
+    Pending <span class="tab-count {% if count_pending %}has-items{% endif %}">{{ count_pending }}</span>
+  </a>
+  <a href="?tab=suspected" class="tab-btn {% if tab == 'suspected' %}active{% endif %}">
+    ⚠ Fraud Suspected <span class="tab-count {% if count_suspected %}has-items{% endif %}">{{ count_suspected }}</span>
+  </a>
+  <a href="?tab=approved" class="tab-btn {% if tab == 'approved' %}active{% endif %}">
+    Approved <span class="tab-count">{{ count_approved }}</span>
+  </a>
+  <a href="?tab=paid" class="tab-btn {% if tab == 'paid' %}active{% endif %}">
+    Paid <span class="tab-count ok">{{ count_paid }}</span>
+  </a>
+</div>
+
+<form method="get" class="search-bar">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="text" name="q" value="{{ search }}" placeholder="Search affiliate code, name, order ID..." class="search-input">
+  <button type="submit" class="btn btn-gold">Search</button>
+  {% if search %}<a href="?tab={{ tab }}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  {% if page_obj %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Affiliate</th><th>Order</th>
+        <th>Order Total</th><th>Commission</th><th>Date</th>
+        {% if tab == 'suspected' %}<th>Fraud Reason</th>{% endif %}
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in page_obj %}
+      <tr>
+        <td style="color:#9A9188;font-size:.75rem;">{{ c.pk }}</td>
+        <td>
+          <div style="font-weight:700;color:#A07830;">{{ c.affiliate.referral_code }}</div>
+          <div style="font-size:.72rem;color:#9A9188;">{{ c.affiliate.full_name }}</div>
+        </td>
+        <td style="font-weight:600;color:#1A1208;">#{{ c.order_id }}</td>
+        <td style="font-size:.82rem;">৳{{ c.order_total|floatformat:0 }}</td>
+        <td style="font-weight:700;color:#065F46;font-size:.9rem;">৳{{ c.commission_amount|floatformat:0 }}</td>
+        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ c.created_at|date:"d M Y" }}</td>
+        {% if tab == 'suspected' %}
+        <td style="font-size:.75rem;color:#9A3412;max-width:160px;">{{ c.fraud_reason|default:"—" }}</td>
+        {% endif %}
+        <td>
+          <div style="display:flex;flex-direction:column;gap:.3rem;">
+            {% if tab == 'pending' %}
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="approve">
+              <button class="btn btn-approve" style="width:100%;">✓ Approve</button>
+            </form>
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="reject">
+              <button class="btn btn-reject" style="width:100%;">✗ Reject</button>
+            </form>
+            {% elif tab == 'suspected' %}
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="approve">
+              <button class="btn btn-approve" style="width:100%;font-size:.72rem;">✓ Approve Anyway</button>
+            </form>
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="clear_fraud">
+              <button class="btn btn-ghost" style="width:100%;font-size:.72rem;">🛡 Clear Fraud Flag</button>
+            </form>
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="reject">
+              <button class="btn btn-reject" style="width:100%;font-size:.72rem;">✗ Reject</button>
+            </form>
+            {% elif tab == 'approved' %}
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="mark_paid">
+              <button class="btn btn-pay" style="width:100%;">💳 Mark Paid</button>
+            </form>
+            {% elif tab == 'paid' %}
+            <span style="font-size:.72rem;color:#065F46;">✓ Paid {{ c.paid_at|date:"d M" }}</span>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;">
+    {% if page_obj.has_previous %}<a href="?tab={{ tab }}&page={{ page_obj.previous_page_number }}&q={{ search }}" class="btn btn-ghost">← Prev</a>{% endif %}
+    <span style="padding:.4rem .75rem;font-size:.8rem;color:#5A5450;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?tab={{ tab }}&page={{ page_obj.next_page_number }}&q={{ search }}" class="btn btn-ghost">Next →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state"><div class="icon">💰</div><p>No commissions in this category.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

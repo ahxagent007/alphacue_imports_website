@@ -1,0 +1,143 @@
+{% extends "affiliate/admin/base_admin.html" %}
+{% block title %}Affiliate Applications{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div><h1>Affiliate Applications</h1><p>Review and manage affiliate applications.</p></div>
+</div>
+
+<div class="tab-row">
+  <a href="?status=pending" class="tab-btn {% if status_filter == 'pending' %}active{% endif %}">
+    Pending <span class="tab-count {% if count_pending %}has-items{% endif %}">{{ count_pending }}</span>
+  </a>
+  <a href="?status=approved" class="tab-btn {% if status_filter == 'approved' %}active{% endif %}">
+    Approved <span class="tab-count">{{ count_approved }}</span>
+  </a>
+  <a href="?status=rejected" class="tab-btn {% if status_filter == 'rejected' %}active{% endif %}">
+    Rejected <span class="tab-count">{{ count_rejected }}</span>
+  </a>
+  <a href="?status=suspended" class="tab-btn {% if status_filter == 'suspended' %}active{% endif %}">
+    Suspended <span class="tab-count">{{ count_suspended }}</span>
+  </a>
+  <a href="?status=" class="tab-btn {% if not status_filter %}active{% endif %}">All</a>
+</div>
+
+<form method="get" class="search-bar">
+  <input type="hidden" name="status" value="{{ status_filter }}">
+  <input type="text" name="q" value="{{ search }}" placeholder="Search name, code, phone..." class="search-input">
+  <button type="submit" class="btn btn-gold">Search</button>
+  {% if search %}<a href="?status={{ status_filter }}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  {% if page_obj %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Affiliate</th><th>Phone</th><th>Payment</th>
+        <th>Promotion Plan</th><th>Applied</th><th>Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for aff in page_obj %}
+      <tr>
+        <td>
+          <div style="font-weight:700;color:#1A1208;">{{ aff.full_name }}</div>
+          <div style="font-size:.72rem;color:#A07830;font-weight:600;">{{ aff.referral_code }}</div>
+          <div style="font-size:.7rem;color:#9A9188;">{{ aff.user.email|default:"—" }}</div>
+        </td>
+        <td style="font-size:.82rem;">{{ aff.phone_number }}</td>
+        <td>
+          <div style="font-size:.8rem;font-weight:600;">{{ aff.get_preferred_payment_method_display }}</div>
+          <div style="font-size:.72rem;color:#9A9188;">{{ aff.payment_account_number|default:"—" }}</div>
+        </td>
+        <td style="max-width:200px;">
+          <div style="font-size:.78rem;color:#5A5450;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">
+            {{ aff.how_will_promote|default:"—" }}
+          </div>
+        </td>
+        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ aff.applied_at|date:"d M Y" }}</td>
+        <td>
+          <span class="pill pill-{{ aff.status }}">{{ aff.get_status_display }}</span>
+          {% if aff.is_fraud_flagged %}
+          <span class="pill pill-rejected" style="margin-top:.25rem;display:block;width:fit-content;">⚠ Fraud</span>
+          {% endif %}
+        </td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:.35rem;">
+            {% if aff.status == 'pending' %}
+            <form method="post" action="{% url 'affiliate:affiliate_action' aff.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="approve">
+              <button class="btn btn-approve" style="width:100%;">✓ Approve</button>
+            </form>
+            <button class="btn btn-reject" style="width:100%;" onclick="openRejectModal({{ aff.pk }}, '{{ aff.full_name|escapejs }}')">✗ Reject</button>
+            {% elif aff.status == 'approved' %}
+            <form method="post" action="{% url 'affiliate:affiliate_action' aff.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="suspend">
+              <button class="btn btn-reject" style="width:100%;">🚫 Suspend</button>
+            </form>
+            {% elif aff.status == 'suspended' %}
+            <form method="post" action="{% url 'affiliate:affiliate_action' aff.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="approve">
+              <button class="btn btn-approve" style="width:100%;">↩ Reinstate</button>
+            </form>
+            {% endif %}
+            {% if aff.is_fraud_flagged %}
+            <form method="post" action="{% url 'affiliate:affiliate_action' aff.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="clear_fraud">
+              <button class="btn btn-ghost" style="width:100%;font-size:.72rem;">🛡 Clear Flag</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;flex-wrap:wrap;">
+    {% if page_obj.has_previous %}<a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}&q={{ search }}" class="btn btn-ghost">← Prev</a>{% endif %}
+    <span style="padding:.4rem .75rem;font-size:.8rem;color:#5A5450;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}&q={{ search }}" class="btn btn-ghost">Next →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state"><div class="icon">👤</div><p>No affiliates found.</p></div>
+  {% endif %}
+</div>
+
+<!-- Reject modal -->
+<div class="modal-overlay" id="reject-modal">
+  <div class="modal">
+    <div class="modal-title">Reject Application</div>
+    <p style="font-size:.85rem;color:#5A5450;margin-bottom:1rem;">Rejecting <strong id="reject-name"></strong>. Provide a reason (optional):</p>
+    <form method="post" id="reject-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reject">
+      <textarea name="reason" class="modal-input" style="height:90px;resize:vertical;" placeholder="Reason for rejection..."></textarea>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeRejectModal()">Cancel</button>
+        <button type="submit" class="btn btn-reject">Confirm Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+function openRejectModal(id, name) {
+  document.getElementById('reject-name').textContent = name;
+  document.getElementById('reject-form').action = `/affiliate/admin/affiliates/${id}/action/`;
+  document.getElementById('reject-modal').classList.add('open');
+}
+function closeRejectModal() {
+  document.getElementById('reject-modal').classList.remove('open');
+}
+document.getElementById('reject-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeRejectModal();
+});
+</script>
+{% endblock %}

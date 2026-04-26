@@ -91,10 +91,18 @@ class AffiliateProfile(models.Model):
 
     @property
     def withdrawal_balance(self):
-        pending_total = self.withdrawal_requests.filter(
-            status=WithdrawalRequest.STATUS_PENDING
+        """
+        Available balance = approved balance minus any withdrawal requests
+        that are pending OR approved (but not yet paid out).
+        This prevents affiliates from re-requesting already-approved amounts.
+        """
+        reserved = self.withdrawal_requests.filter(
+            status__in=[
+                WithdrawalRequest.STATUS_PENDING,
+                WithdrawalRequest.STATUS_APPROVED,
+            ]
         ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        return self.balance_approved - pending_total
+        return max(Decimal('0.00'), self.balance_approved - reserved)
 
     def get_referral_url(self, request=None):
         from django.urls import reverse

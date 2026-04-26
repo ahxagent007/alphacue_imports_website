@@ -363,14 +363,17 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
             if obj.status == WithdrawalRequest.STATUS_PAID and old_status != WithdrawalRequest.STATUS_PAID:
                 obj.processed_at = timezone.now()
                 obj.save(update_fields=['processed_at'])
+                # Only deduct when actually paid — not on approve
                 AffiliateProfile.objects.filter(pk=obj.affiliate_id).update(
                     balance_approved=models.F('balance_approved') - obj.amount,
                     total_withdrawn=models.F('total_withdrawn') + obj.amount
                 )
                 self.message_user(request, f"✅ ৳{obj.amount:,.0f} paid to {obj.affiliate.referral_code}. Balance updated.")
-            elif obj.status in (WithdrawalRequest.STATUS_APPROVED, WithdrawalRequest.STATUS_REJECTED) and old_status == WithdrawalRequest.STATUS_PENDING:
+            elif obj.status in (WithdrawalRequest.STATUS_APPROVED, WithdrawalRequest.STATUS_REJECTED) and old_status not in (WithdrawalRequest.STATUS_PAID,):
                 obj.processed_at = timezone.now()
                 obj.save(update_fields=['processed_at'])
+                # No balance change on approve/reject — withdrawal_balance property
+                # excludes pending+approved automatically
         else:
             super().save_model(request, obj, form, change)
 

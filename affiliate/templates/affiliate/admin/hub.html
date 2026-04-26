@@ -1,0 +1,154 @@
+{% extends "affiliate/admin/base_admin.html" %}
+{% block title %}Admin Hub{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Affiliate Admin Hub</h1>
+    <p>Everything requiring your attention in one place.</p>
+  </div>
+</div>
+
+<!-- Pending action counts -->
+<div class="stat-row">
+  <a href="{% url 'affiliate:affiliate_queue' %}?status=pending" style="text-decoration:none;">
+    <div class="stat-box warning">
+      <div class="stat-num">{{ pending_affiliates }}</div>
+      <div class="stat-lbl">Pending Affiliates</div>
+    </div>
+  </a>
+  <a href="{% url 'affiliate:commission_queue' %}?tab=pending" style="text-decoration:none;">
+    <div class="stat-box gold">
+      <div class="stat-num">{{ pending_commissions }}</div>
+      <div class="stat-lbl">Pending Commissions</div>
+    </div>
+  </a>
+  <a href="{% url 'affiliate:commission_queue' %}?tab=suspected" style="text-decoration:none;">
+    <div class="stat-box danger">
+      <div class="stat-num">{{ suspected_commissions }}</div>
+      <div class="stat-lbl">Fraud Suspected</div>
+    </div>
+  </a>
+  <a href="{% url 'affiliate:withdrawal_queue' %}?tab=pending" style="text-decoration:none;">
+    <div class="stat-box warning">
+      <div class="stat-num">{{ pending_withdrawals }}</div>
+      <div class="stat-lbl">Pending Withdrawals</div>
+    </div>
+  </a>
+  <a href="{% url 'affiliate:withdrawal_queue' %}?tab=approved" style="text-decoration:none;">
+    <div class="stat-box info">
+      <div class="stat-num">{{ approved_withdrawals }}</div>
+      <div class="stat-lbl">Awaiting Payment</div>
+    </div>
+  </a>
+  <a href="{% url 'affiliate:fraud_dashboard' %}" style="text-decoration:none;">
+    <div class="stat-box danger">
+      <div class="stat-num">{{ open_fraud_flags }}</div>
+      <div class="stat-lbl">Open Fraud Flags</div>
+    </div>
+  </a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;">
+
+  <!-- Pending affiliates -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">⏳ Pending Affiliates</div>
+      <a href="{% url 'affiliate:affiliate_queue' %}" class="btn btn-ghost" style="font-size:.72rem;padding:.3rem .7rem;">View All</a>
+    </div>
+    {% if recent_affiliates %}
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Phone</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for aff in recent_affiliates %}
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:.82rem;">{{ aff.full_name }}</div>
+            <div style="font-size:.7rem;color:#9A9188;">{{ aff.applied_at|date:"d M Y" }}</div>
+          </td>
+          <td style="font-size:.78rem;color:#5A5450;">{{ aff.phone_number }}</td>
+          <td>
+            <form method="post" action="{% url 'affiliate:affiliate_action' aff.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="approve">
+              <button type="submit" class="btn btn-approve" style="padding:.3rem .6rem;font-size:.7rem;">✓</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="icon">✅</div><p>No pending applications</p></div>
+    {% endif %}
+  </div>
+
+  <!-- Pending commissions -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">💰 Pending Commissions</div>
+      <a href="{% url 'affiliate:commission_queue' %}" class="btn btn-ghost" style="font-size:.72rem;padding:.3rem .7rem;">View All</a>
+    </div>
+    {% if recent_commissions %}
+    <table class="data-table">
+      <thead><tr><th>Affiliate</th><th>Amount</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for c in recent_commissions %}
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:.82rem;color:#A07830;">{{ c.affiliate.referral_code }}</div>
+            <div style="font-size:.7rem;color:#9A9188;">Order #{{ c.order_id }}</div>
+          </td>
+          <td style="font-weight:700;color:#065F46;font-size:.85rem;">৳{{ c.commission_amount|floatformat:0 }}</td>
+          <td>
+            <form method="post" action="{% url 'affiliate:commission_action' c.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="approve">
+              <button type="submit" class="btn btn-approve" style="padding:.3rem .6rem;font-size:.7rem;">✓</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="icon">✅</div><p>No pending commissions</p></div>
+    {% endif %}
+  </div>
+
+  <!-- Pending withdrawals -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">💳 Pending Withdrawals</div>
+      <a href="{% url 'affiliate:withdrawal_queue' %}" class="btn btn-ghost" style="font-size:.72rem;padding:.3rem .7rem;">View All</a>
+    </div>
+    {% if recent_withdrawals %}
+    <table class="data-table">
+      <thead><tr><th>Affiliate</th><th>Amount</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for w in recent_withdrawals %}
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:.82rem;">{{ w.affiliate.full_name }}</div>
+            <div style="font-size:.7rem;color:#9A9188;">{{ w.get_payment_method_display }} {{ w.payment_account }}</div>
+          </td>
+          <td style="font-weight:700;color:#1D4ED8;font-size:.85rem;">৳{{ w.amount|floatformat:0 }}</td>
+          <td>
+            <form method="post" action="{% url 'affiliate:withdrawal_action' w.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="approve">
+              <button type="submit" class="btn btn-approve" style="padding:.3rem .6rem;font-size:.7rem;">✓</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="icon">✅</div><p>No pending withdrawals</p></div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -163,7 +163,7 @@
           {% csrf_token %}
           <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:500;padding:0;">Logout</button>
         </form>
-        {% if user.is_staff %}<a href="{% url 'store:manage_order_list' %}" class="nav-link" style="color:var(--gold-l);">Manage Orders</a>{% endif %}
+        {% if user.is_staff %}<a href="{% url 'store:manage_order_list' %}" class="nav-link" style="color:var(--gold-l);">Orders</a><a href="{% url 'affiliate:admin_hub' %}" class="nav-link" style="color:var(--gold-l);">Affiliate Admin</a>{% endif %}
       {% else %}
         <a href="/accounts/login/" class="nav-link">Login</a>
         <a href="{% url 'affiliate:register' %}" class="nav-link">Register</a>
