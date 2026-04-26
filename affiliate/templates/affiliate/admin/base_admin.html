@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,7 +122,7 @@
 <body>
 
 <header class="admin-header">
-  <a href="{% url 'affiliate:admin_hub' %}" class="admin-brand">AlphaCue <span>Admin</span></a>
+  <a href="{% url 'affiliate:admin_hub' %}" class="admin-brand" style="display:flex;align-items:center;gap:.5rem;"><img src="{% static 'logo.png' %}" alt="AlphaCue" style="height:32px;width:32px;object-fit:contain;"><span>AlphaCue <span style="color:var(--text);">Admin</span></span></a>
   <div class="admin-header-right">
     <a href="{% url 'store:homepage' %}" class="admin-header-link">← Store</a>
     <a href="/admin/" class="admin-header-link">Django Admin</a>

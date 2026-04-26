@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -328,7 +329,7 @@
 <body>
 
 <nav class="navbar">
-  <a class="navbar-brand" href="/">AlphaCue <span>Imports</span></a>
+  <a class="navbar-brand" href="/" style="display:flex;align-items:center;gap:.5rem;"><img src="{% static 'logo.png' %}" alt="AlphaCue" style="height:34px;width:34px;object-fit:contain;"><span>AlphaCue <span style="color:var(--text);">Imports</span></span></a>
   <div class="navbar-links">
     {% if user.is_authenticated %}
       {% if user.affiliate_profile %}

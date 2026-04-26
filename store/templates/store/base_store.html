@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -142,7 +143,7 @@
 
 <nav class="navbar">
   <div class="nav-inner">
-    <a href="{% url 'store:homepage' %}" class="nav-brand">AlphaCue <span>Imports</span></a>
+    <a href="{% url 'store:homepage' %}" class="nav-brand" style="display:flex;align-items:center;gap:.6rem;"><img src="{% static 'logo.png' %}" alt="AlphaCue Imports" style="height:38px;width:38px;object-fit:contain;"><span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold);">AlphaCue <span style="color:var(--text);">Imports</span></span></a>
 
     <form class="nav-search" method="get" action="{% url 'store:search' %}" role="search">
       <span class="nav-search-icon">🔍</span>

@@ -1,10 +1,34 @@
+"""
+alphacue_imports/settings.py
+─────────────────────────────
+All sensitive values are read from a .env file in the project root.
+
+Install dependencies:
+    pip install python-dotenv mysqlclient whitenoise Pillow django-ckeditor
+"""
+
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = 'django-insecure-!@%#(te#voy4+0kqp(j+vz+l!izqbxkth1r(-kxel9t-=ktyk4'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+
+# ─── Core ──────────────────────────────────────────────────────────────────────
+
+SECRET_KEY = os.environ['SECRET_KEY']
+
+DEBUG = os.getenv('DEBUG', 'False').strip().lower() in ('true', '1', 'yes')
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if h.strip()
+]
+
+
+# ─── Apps ──────────────────────────────────────────────────────────────────────
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -19,8 +43,13 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
 ]
 
+
+# ─── Middleware ────────────────────────────────────────────────────────────────
+# WhiteNoise must be immediately after SecurityMiddleware
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',         # ← WhiteNoise
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -31,6 +60,9 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'alphacue_imports.urls'
+
+
+# ─── Templates ────────────────────────────────────────────────────────────────
 
 TEMPLATES = [
     {
@@ -50,12 +82,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'alphacue_imports.wsgi.application'
 
+
+# ─── Database — MySQL ──────────────────────────────────────────────────────────
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE':   'django.db.backends.mysql',
+        'NAME':     os.environ['DB_NAME'],
+        'USER':     os.environ['DB_USER'],
+        'PASSWORD': os.environ['DB_PASSWORD'],
+        'HOST':     os.getenv('DB_HOST', 'localhost'),
+        'PORT':     os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     }
 }
+
+
+# ─── Password Validation ──────────────────────────────────────────────────────
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -64,37 +110,78 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+
+# ─── Localisation ─────────────────────────────────────────────────────────────
+
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Dhaka'
-USE_I18N = True
-USE_TZ = True
+TIME_ZONE     = 'Asia/Dhaka'
+USE_I18N      = True
+USE_TZ        = True
 
-# Static & Media
+
+# ─── Static & Media ───────────────────────────────────────────────────────────
+
 STATIC_URL  = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL   = '/media/'
-MEDIA_ROOT  = BASE_DIR / 'media'
 
-# Affiliate settings
-AFFILIATE_COOKIE_NAME    = 'alphacue_ref'
-AFFILIATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
-AFFILIATE_SESSION_KEY    = 'affiliate_referral_code'
+_static = os.getenv('STATIC_ROOT', '').strip()
+STATIC_ROOT = Path(_static) if _static else BASE_DIR / 'staticfiles'
 
-# Session
-SESSION_ENGINE           = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE       = 60 * 60 * 24 * 30
+_media = os.getenv('MEDIA_ROOT', '').strip()
+MEDIA_ROOT = Path(_media) if _media else BASE_DIR / 'media'
+
+# WhiteNoise — compressed + cached static files for production
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+
+# ─── Sessions ─────────────────────────────────────────────────────────────────
+
+SESSION_ENGINE             = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE         = 60 * 60 * 24 * 30
 SESSION_SAVE_EVERY_REQUEST = False
 
-# Auth
-LOGIN_URL            = '/accounts/login/'
-LOGIN_REDIRECT_URL   = '/affiliate/application-status/'
-LOGOUT_REDIRECT_URL  = '/'
 
-# Commission webhook
-AFFILIATE_WEBHOOK_SECRET = 'change-this-to-a-strong-secret-key'
+# ─── Auth ─────────────────────────────────────────────────────────────────────
 
-# CKEditor
-CKEDITOR_UPLOAD_PATH = 'uploads/ckeditor/'
+LOGIN_URL           = '/accounts/login/'
+LOGIN_REDIRECT_URL  = '/affiliate/application-status/'
+LOGOUT_REDIRECT_URL = '/'
+
+
+# ─── Affiliate ────────────────────────────────────────────────────────────────
+
+AFFILIATE_COOKIE_NAME    = os.getenv('AFFILIATE_COOKIE_NAME',    'alphacue_ref')
+AFFILIATE_COOKIE_MAX_AGE = int(os.getenv('AFFILIATE_COOKIE_MAX_AGE', str(60 * 60 * 24 * 30)))
+AFFILIATE_SESSION_KEY    = os.getenv('AFFILIATE_SESSION_KEY',    'affiliate_referral_code')
+AFFILIATE_WEBHOOK_SECRET = os.getenv('AFFILIATE_WEBHOOK_SECRET', '')
+
+
+# ─── Security headers (production only) ───────────────────────────────────────
+
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER    = True
+    SECURE_CONTENT_TYPE_NOSNIFF  = True
+    X_FRAME_OPTIONS               = 'DENY'
+    SESSION_COOKIE_SECURE         = True
+    CSRF_COOKIE_SECURE            = True
+    SECURE_PROXY_SSL_HEADER       = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # Uncomment once HTTPS is confirmed working:
+    # SECURE_SSL_REDIRECT            = True
+    # SECURE_HSTS_SECONDS            = 31536000
+    # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # SECURE_HSTS_PRELOAD            = True
+
+
+# ─── CKEditor ────────────────────────────────────────────────────────────────
+
+CKEDITOR_UPLOAD_PATH   = 'uploads/ckeditor/'
 CKEDITOR_IMAGE_BACKEND = 'pillow'
 CKEDITOR_CONFIGS = {
     'default': {
@@ -128,3 +215,5 @@ CKEDITOR_CONFIGS = {
         'width': '100%',
     },
 }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

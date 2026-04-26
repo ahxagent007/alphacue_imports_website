@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,7 +105,7 @@
 
 <!-- Top header -->
 <header class="dash-header">
-  <a href="{% url 'store:homepage' %}" class="dash-brand">AlphaCue <span>Imports</span></a>
+  <a href="{% url 'store:homepage' %}" class="dash-brand" style="display:flex;align-items:center;gap:.5rem;"><img src="{% static 'logo.png' %}" alt="AlphaCue" style="height:32px;width:32px;object-fit:contain;"><span>AlphaCue <span style="color:var(--text);">Imports</span></span></a>
   <div class="dash-header-right">
     <a href="{% url 'store:homepage' %}" class="dash-header-link">← Store</a>
     <div class="dash-user">
