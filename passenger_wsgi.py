@@ -1,0 +1,1 @@
+from alphacue_imports.wsgi import application

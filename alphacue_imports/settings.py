@@ -114,10 +114,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # ─── Localisation ─────────────────────────────────────────────────────────────
 
 LANGUAGE_CODE = 'en-us'
+USE_TZ        = False
 TIME_ZONE     = 'Asia/Dhaka'
 USE_I18N      = True
-USE_TZ        = True
-
 
 # ─── Static & Media ───────────────────────────────────────────────────────────
 
