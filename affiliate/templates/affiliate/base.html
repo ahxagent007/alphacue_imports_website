@@ -328,6 +328,16 @@
     .step-title { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
     .step-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
   </style>
+  {% if GOOGLE_ANALYTICS_ID %}
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ GOOGLE_ANALYTICS_ID }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ GOOGLE_ANALYTICS_ID }}');
+  </script>
+  {% endif %}
 </head>
 <body>
 
