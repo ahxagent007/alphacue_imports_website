@@ -75,6 +75,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'store.context_processors.cart',
+                'store.context_processors.google_analytics',
             ],
         },
     },
@@ -116,7 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE     = 'Asia/Dhaka'
 USE_I18N      = True
-USE_TZ        = True
+USE_TZ        = False  # Disabled — MySQL on cPanel often lacks timezone tables
 
 
 # ─── Static & Media ───────────────────────────────────────────────────────────
@@ -161,6 +162,9 @@ AFFILIATE_COOKIE_NAME    = os.getenv('AFFILIATE_COOKIE_NAME',    'alphacue_ref')
 AFFILIATE_COOKIE_MAX_AGE = int(os.getenv('AFFILIATE_COOKIE_MAX_AGE', str(60 * 60 * 24 * 30)))
 AFFILIATE_SESSION_KEY    = os.getenv('AFFILIATE_SESSION_KEY',    'affiliate_referral_code')
 AFFILIATE_WEBHOOK_SECRET = os.getenv('AFFILIATE_WEBHOOK_SECRET', '')
+
+# Google Analytics
+GOOGLE_ANALYTICS_ID = os.getenv('GOOGLE_ANALYTICS_ID', '')
 
 
 # ─── Security headers (production only) ───────────────────────────────────────
