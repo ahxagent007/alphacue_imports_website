@@ -141,26 +141,8 @@ class ProductAdminForm(forms.ModelForm):
             required=False,
         )
 
-    # Commission fields — not on the Product model, handled in save_model
-    _commission_type = forms.ChoiceField(
-        choices=[('', '--- Select ---')] + list(CommissionSetting.COMMISSION_TYPE_CHOICES),
-        required=False,
-        label='Commission Type',
-        widget=forms.Select(attrs={'style': 'width:220px'}),
-    )
-    _commission_value = forms.DecimalField(
-        max_digits=6, decimal_places=2,
-        required=False,
-        label='Commission Value',
-        help_text='e.g. 10 for 10% or 150 for ৳150 flat. Leave blank to skip.',
-        widget=forms.NumberInput(attrs={
-            'style': 'width:160px', 'step': '0.01', 'min': '0.01',
-            'placeholder': 'e.g. 10',
-        }),
-    )
-
     class Meta:
-        model = Product
+        model  = Product
         fields = '__all__'
 
 
@@ -297,16 +279,52 @@ class ProductAdmin(admin.ModelAdmin):
     commission_rate_display.short_description = 'Commission'
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        # Pre-fill commission fields when editing an existing product
+        # Create a FRESH subclass each request so base_fields mutation
+        # is isolated and never leaks into other ModelAdmin classes.
+        base_form = super().get_form(request, obj, **kwargs)
+
+        comm_type_field = forms.ChoiceField(
+            choices=[('', '--- Select ---')] + list(CommissionSetting.COMMISSION_TYPE_CHOICES),
+            required=False,
+            label='Commission Type',
+            widget=forms.Select(attrs={'style': 'width:220px'}),
+        )
+        comm_value_field = forms.DecimalField(
+            max_digits=6, decimal_places=2,
+            required=False,
+            label='Commission Value',
+            help_text='e.g. 10 for 10% or 150 for ৳150 flat. Leave blank to skip.',
+            widget=forms.NumberInput(attrs={
+                'style': 'width:160px', 'step': '0.01', 'min': '0.01',
+                'placeholder': 'e.g. 10',
+            }),
+        )
+
+        # Pre-fill if commission already exists
         if obj:
             existing = CommissionSetting.objects.filter(
                 product_id=obj.pk, is_active=True
             ).first()
             if existing:
-                form.base_fields['_commission_type'].initial = existing.commission_type
-                form.base_fields['_commission_value'].initial = existing.commission_value
-        return form
+                comm_type_field.initial  = existing.commission_type
+                comm_value_field.initial = existing.commission_value
+
+        # Build a brand-new form subclass with fresh declared_fields
+        # This prevents mutation of the shared base_fields dict
+        fresh_form = type(
+            'ProductAdminFormWithCommission',
+            (base_form,),
+            {
+                '_commission_type':  comm_type_field,
+                '_commission_value': comm_value_field,
+                'declared_fields': dict(
+                    list(base_form.declared_fields.items()) +
+                    [('_commission_type', comm_type_field),
+                     ('_commission_value', comm_value_field)]
+                ),
+            }
+        )
+        return fresh_form
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -459,14 +477,6 @@ class OrderAdmin(admin.ModelAdmin):
         ('🔗 Affiliate', {
             'fields': ('affiliate_code', 'referral_click'),
             'classes': ('collapse',),
-        }),
-        ('💰 Commission Rate', {
-            'fields': ('_commission_type', '_commission_value'),
-            'description': (
-                'Set the affiliate commission for this product. '
-                'Affiliates will NOT earn unless a rate is set here. '
-                'This overrides the global default commission rate.'
-            ),
         }),
         ('🕐 Timestamps', {
             'fields': ('created_at', 'updated_at'),
