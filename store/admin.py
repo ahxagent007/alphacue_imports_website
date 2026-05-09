@@ -279,8 +279,16 @@ class ProductAdmin(admin.ModelAdmin):
     commission_rate_display.short_description = 'Commission'
 
     def get_form(self, request, obj=None, **kwargs):
-        # Create a FRESH subclass each request so base_fields mutation
-        # is isolated and never leaks into other ModelAdmin classes.
+        # Strip custom non-model fields before modelform_factory validates them.
+        # Django admin passes flatten_fieldsets() into kwargs['fields'], which
+        # includes _commission_type/_commission_value — neither is a model field,
+        # so modelform_factory raises FieldError unless we remove them first.
+        if 'fields' in kwargs:
+            kwargs['fields'] = [
+                f for f in kwargs['fields']
+                if f not in ('_commission_type', '_commission_value')
+            ]
+
         base_form = super().get_form(request, obj, **kwargs)
 
         comm_type_field = forms.ChoiceField(
