@@ -1,0 +1,69 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Share Out Profit{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:investor_list' %}">Investors</a> / Share out profit</div>
+
+<div class="page-head">
+  <div>
+    <h1>Share Out Profit</h1>
+    <p>Splits a period's profit between the investors by their ownership share.</p>
+  </div>
+  <div class="stat-box success" style="min-width:200px">
+    <div class="stat-num">৳{{ profit.profit|floatformat:2 }}</div>
+    <div class="stat-lbl">Profit All Time</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.period_start %}
+          {% include 'finance/partials/field.html' with field=form.period_end %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.distribution_date %}
+          {% include 'finance/partials/field.html' with field=form.amount %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.notes %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Share it out</button>
+          <a href="{% url 'finance:investor_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">How it will split</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Investor</th><th class="num">Ownership</th></tr></thead>
+      <tbody>
+        {% for investor, percent in split %}
+          <tr><td>{{ investor.name }}</td><td class="num"><span class="pill pill-ok">{{ percent }}%</span></td></tr>
+        {% empty %}
+          <tr><td colspan="2">
+            <div class="empty-state">
+              <div class="icon">🤝</div>
+              <p>No investors with a share yet. Record their capital first.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.7">
+      This moves value from <strong>Retained Earnings</strong> into each investor's
+      capital account. No cash moves — it makes the claim real. Paying it out is a
+      separate <strong>drawing</strong>, which is how it works in practice.
+    </p>
+  </div>
+</div>
+{% endblock %}

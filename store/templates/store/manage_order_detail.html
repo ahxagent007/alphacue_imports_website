@@ -34,7 +34,21 @@
       <h1 style="font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;color:var(--gold-d);">{{ order.order_number }}</h1>
       <div style="font-size:.82rem;color:var(--page-text-m);margin-top:.2rem;">{{ order.created_at|date:"d M Y, g:i A" }}</div>
     </div>
-    <span class="status-pill pill-{{ order.status }}">{{ order.get_status_display }}</span>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+      {% with invoice=order.invoices.first %}
+        {% if invoice %}
+          <a href="{% url 'finance:invoice_detail' invoice.pk %}" class="btn btn-ghost"
+             style="font-size:.78rem;">🧾 {{ invoice.display_number }}</a>
+        {% else %}
+          <form method="post" action="{% url 'finance:invoice_from_order' order.order_number %}"
+                style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-ghost" style="font-size:.78rem;">🧾 Create invoice</button>
+          </form>
+        {% endif %}
+      {% endwith %}
+      <span class="status-pill pill-{{ order.status }}">{{ order.get_status_display }}</span>
+    </div>
   </div>
 
   <div class="detail-grid">

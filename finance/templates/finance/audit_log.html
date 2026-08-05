@@ -1,0 +1,122 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Audit Log</h1>
+    <p>Who posted what, and who reversed what. Read straight from the ledger — there is no second record to disagree with it.</p>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">{{ total_count }}</div>
+    <div class="stat-lbl">Entries Posted</div>
+  </div>
+  <div class="stat-box {% if reversal_count %}warning{% else %}success{% endif %}">
+    <div class="stat-num">{{ reversal_count }}</div>
+    <div class="stat-lbl">Reversed</div>
+    <div class="stat-sub">Corrections, not deletions</div>
+  </div>
+  {% for row in by_user|slice:":3" %}
+    <div class="stat-box info">
+      <div class="stat-num">{{ row.count }}</div>
+      <div class="stat-lbl">{{ row.created_by__username|default:"System / no user" }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="user">Posted by</label>
+    <select name="user" id="user" class="form-input">
+      <option value="">Anyone</option>
+      {% for staff in users %}
+        <option value="{{ staff.pk }}" {% if user_id == staff.pk|stringformat:"s" %}selected{% endif %}>{{ staff.username }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-field">
+    <label for="source">Source</label>
+    <select name="source" id="source" class="form-input">
+      <option value="">All</option>
+      {% for value in sources %}
+        {% if value %}<option value="{{ value }}" {% if source == value %}selected{% endif %}>{{ value }}</option>{% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-field">
+    <label for="only">Show</label>
+    <select name="only" id="only" class="form-input">
+      <option value="">Everything</option>
+      <option value="reversals" {% if only == 'reversals' %}selected{% endif %}>Reversals only</option>
+      <option value="reversed" {% if only == 'reversed' %}selected{% endif %}>Reversed entries</option>
+      <option value="unattributed" {% if only == 'unattributed' %}selected{% endif %}>No user recorded</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if user_id or source or only %}<a href="{% url 'finance:audit_log' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} entr{{ page_obj.paginator.count|pluralize:"y,ies" }}</span>
+    <span class="muted" style="font-size:.78rem">Most recently posted first</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Posted</th><th>By</th><th>Description</th><th>Source</th><th class="num">Amount</th><th>Flags</th></tr>
+      </thead>
+      <tbody>
+        {% for txn in page_obj %}
+          <tr>
+            <td class="code-ref"><a href="{% url 'finance:transaction_detail' txn.pk %}">{{ txn.reference_no }}</a></td>
+            <td>
+              {{ txn.created_at|date:"d M Y, g:i A" }}
+              {% if txn.created_at|date:"Y-m-d" != txn.date|date:"Y-m-d" %}
+                <div class="muted" style="font-size:.72rem">dated {{ txn.date|date:"d M Y" }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if txn.created_by %}<strong>{{ txn.created_by.username }}</strong>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td>{{ txn.description }}</td>
+            <td class="muted">{{ txn.source_type|default:"—" }}</td>
+            <td class="num money">৳{{ txn.total|floatformat:2 }}</td>
+            <td>
+              {% if txn.is_reversed %}<span class="pill pill-bad">Reversed</span>{% endif %}
+              {% if txn.reversal_of_id %}
+                <a href="{% url 'finance:transaction_detail' txn.reversal_of_id %}">
+                  <span class="pill pill-muted">Reverses TXN-{{ txn.reversal_of_id|stringformat:"06d" }}</span>
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">🔍</div>
+              <p>{% if user_id or source or only %}Nothing matched those filters.{% else %}Nothing posted yet.{% endif %}</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if user_id %}&user={{ user_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if only %}&only={{ only }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if user_id %}&user={{ user_id }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if only %}&only={{ only }}{% endif %}">Next →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

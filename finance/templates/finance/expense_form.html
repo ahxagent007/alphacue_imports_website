@@ -1,0 +1,46 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Record Expense{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:expense_list' %}">Expenses</a> / New</div>
+
+<div class="page-head">
+  <div>
+    <h1>Record Expense</h1>
+    <p>Money spent on a running cost. The amount leaves the account you paid from.</p>
+  </div>
+</div>
+
+{% include 'finance/partials/money_strip.html' %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.date %}
+          {% include 'finance/partials/field.html' with field=form.amount %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.expense_account %}
+          {% include 'finance/partials/field.html' with field=form.paid_from %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.description %}
+        {% include 'finance/partials/field.html' with field=form.memo %}
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Record expense</button>
+          <button type="submit" name="save_and_add" value="1" class="btn btn-ghost btn-lg">Save &amp; add another</button>
+          <a href="{% url 'finance:expense_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

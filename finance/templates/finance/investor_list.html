@@ -1,0 +1,108 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Investors{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Investors</h1>
+    <p>Who has money in the business, and what their stake is worth.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:profit_distribute' %}" class="btn btn-ghost btn-lg">Share out profit</a>
+    <a href="{% url 'finance:investor_create' %}" class="btn btn-gold btn-lg">+ New investor</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ total_capital|floatformat:2 }}</div>
+    <div class="stat-lbl">Capital Put In</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ total_equity|floatformat:2 }}</div>
+    <div class="stat-lbl">Total Equity</div>
+    <div class="stat-sub">Including retained profit</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">{{ split|length }}</div>
+    <div class="stat-lbl">Investors</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Ownership</span>
+    <span class="muted" style="font-size:.78rem">Worked out from capital unless set by hand</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Investor</th><th class="num">Capital in</th><th class="num">Drawings</th><th class="num">Profit share</th><th class="num">Stake</th><th class="num">Ownership</th></tr></thead>
+      <tbody>
+        {% for investor, percent in split %}
+          <tr>
+            <td>
+              <a href="{% url 'finance:investor_detail' investor.pk %}"><strong>{{ investor.name }}</strong></a>
+              {% if investor.ownership_percent is not None %}
+                <span class="pill pill-muted" style="margin-left:.4rem">set by hand</span>
+              {% endif %}
+            </td>
+            <td class="num money">৳{{ investor.capital_in|floatformat:2 }}</td>
+            <td class="num">
+              {% if investor.drawings %}<span class="money neg">৳{{ investor.drawings|floatformat:2 }}</span>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="num">
+              {% if investor.profit_share_total %}<span class="money pos">৳{{ investor.profit_share_total|floatformat:2 }}</span>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="num money">৳{{ investor.current_stake|floatformat:2 }}</td>
+            <td class="num"><span class="pill pill-ok">{{ percent }}%</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">🤝</div>
+              <p>No investors recorded yet.</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:investor_create' %}" class="btn btn-gold">Add the first one</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Profit distributions</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Period</th><th>Shared on</th><th class="num">Net profit</th><th class="num">Distributed</th><th>Split</th></tr></thead>
+      <tbody>
+        {% for distribution in distributions %}
+          <tr>
+            <td>{{ distribution.period_start|date:"d M Y" }} — {{ distribution.period_end|date:"d M Y" }}</td>
+            <td>{{ distribution.distribution_date|date:"d M Y" }}</td>
+            <td class="num money">৳{{ distribution.net_profit|floatformat:2 }}</td>
+            <td class="num money">
+              ৳{{ distribution.distributed_amount|floatformat:2 }}
+              {% if distribution.is_reversed %}<span class="pill pill-bad">Reversed</span>{% endif %}
+            </td>
+            <td class="muted" style="font-size:.78rem">
+              {% for share in distribution.shares.all %}
+                {{ share.investor.name }} ৳{{ share.amount|floatformat:0 }}{% if not forloop.last %}<br>{% endif %}
+              {% endfor %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="icon">📊</div>
+              <p>No profit has been shared out yet.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

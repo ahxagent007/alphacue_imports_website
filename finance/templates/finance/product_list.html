@@ -1,0 +1,138 @@
+{% extends 'finance/base_finance.html' %}
+{% load finance_extras %}
+{% block title %}Products{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Products</h1>
+    <p>The catalogue behind your invoices, purchases and stock. {{ total }} product{{ total|pluralize }}.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:category_create' %}" class="btn btn-ghost btn-lg">+ Category</a>
+    <a href="{% url 'finance:product_create' %}" class="btn btn-gold btn-lg">+ New product</a>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="q">Search</label>
+    <input type="text" name="q" id="q" value="{{ search }}" class="form-input" placeholder="Name or SKU">
+  </div>
+  <div class="form-field">
+    <label for="category">Category</label>
+    <select name="category" id="category" class="form-input">
+      <option value="">All categories</option>
+      {% for category in categories %}
+        <option value="{{ category.pk }}" {% if category_id == category.pk|stringformat:"s" %}selected{% endif %}>
+          {{ category.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if search or category_id %}<a href="{% url 'finance:product_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} product{{ page_obj.paginator.count|pluralize }}</span>
+    <span class="muted" style="font-size:.78rem">Price and stock live on each option</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Product</th><th>Option</th><th>SKU</th>
+          <th class="num">Sells at</th><th class="num">Landed cost</th>
+          <th class="num">Margin</th><th class="num">In stock</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in page_obj %}
+          {% for variant in product.variants.all %}
+            <tr>
+              {% if forloop.first %}
+                <td rowspan="{{ product.variants.all|length }}">
+                  <strong>{{ product.name }}</strong>
+                  <div class="muted" style="font-size:.75rem">{{ product.category.name }}</div>
+                  {% if not product.is_active %}<span class="pill pill-muted">Inactive</span>{% endif %}
+                </td>
+              {% endif %}
+              <td>
+                <a href="{% url 'finance:stock_detail' variant.pk %}">{{ variant.name }}</a>
+                {% if not variant.is_active %}<span class="pill pill-muted" style="margin-left:.3rem">Off</span>{% endif %}
+              </td>
+              <td class="code-ref">{{ variant.sku }}</td>
+              <td class="num money">৳{{ variant.price|floatformat:2 }}</td>
+              {% with row=costs|get_item:variant.pk %}
+                <td class="num">
+                  {% if row and row.has_cost %}
+                    <span class="money">৳{{ row.cost|floatformat:2 }}</span>
+                  {% else %}
+                    <span class="muted">never bought</span>
+                  {% endif %}
+                </td>
+                <td class="num">
+                  {% if row and row.has_cost %}
+                    {% if row.margin > 0 %}
+                      <span class="pill pill-ok">{{ row.margin_percent }}%</span>
+                    {% else %}
+                      <span class="pill pill-bad">{{ row.margin_percent }}%</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+              {% endwith %}
+              <td class="num">
+                <span class="money {% if variant.stock == 0 %}neg{% elif variant.stock <= 5 %}zero{% endif %}">
+                  {% if variant.track_stock %}{{ variant.stock }}{% else %}∞{% endif %}
+                </span>
+              </td>
+              {% if forloop.first %}
+                <td rowspan="{{ product.variants.all|length }}" class="num">
+                  <a href="{% url 'finance:product_edit' product.pk %}" class="btn btn-ghost">Edit</a>
+                </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr>
+              <td><strong>{{ product.name }}</strong></td>
+              <td colspan="6">
+                <span class="pill pill-bad">No options</span>
+                <span class="muted" style="margin-left:.4rem">Cannot be sold or bought until it has one.</span>
+              </td>
+              <td class="num"><a href="{% url 'finance:product_edit' product.pk %}" class="btn btn-ghost">Fix</a></td>
+            </tr>
+          {% endfor %}
+        {% empty %}
+          <tr><td colspan="8">
+            <div class="empty-state">
+              <div class="icon">📦</div>
+              <p>{% if search or category_id %}Nothing matched.{% else %}No products yet.{% endif %}</p>
+              {% if not search and not category_id %}
+                <p style="margin-top:.6rem">
+                  <a href="{% url 'finance:product_create' %}" class="btn btn-gold">Add the first one</a>
+                </p>
+              {% endif %}
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}">Next →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

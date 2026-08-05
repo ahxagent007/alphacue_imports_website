@@ -1,0 +1,114 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ party.name }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:party_list' %}">Clients</a> / {{ party.name }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ party.name }}</h1>
+    <p>
+      {{ party.get_party_type_display }}
+      {% if party.phone %} · {{ party.phone }}{% endif %}
+      {% if party.email %} · {{ party.email }}{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:party_edit' party.pk %}" class="btn btn-ghost btn-lg">Edit</a>
+    <a href="{% url 'finance:invoice_create' %}?party={{ party.pk }}" class="btn btn-gold btn-lg">+ New invoice</a>
+  </div>
+</div>
+
+{% if party.is_over_credit_limit %}
+  <div class="alert alert-warning">
+    <strong>Over credit limit.</strong>
+    {{ party.name }} owes ৳{{ party.outstanding|floatformat:2 }} against a limit of ৳{{ party.credit_limit|floatformat:2 }}.
+  </div>
+{% endif %}
+
+<div class="stat-row">
+  <div class="stat-box {% if party.outstanding > 0 %}warning{% else %}success{% endif %}">
+    <div class="stat-num">৳{{ party.outstanding|floatformat:2 }}</div>
+    <div class="stat-lbl">Currently Owes</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">{{ open_count }}</div>
+    <div class="stat-lbl">Open Invoices</div>
+  </div>
+  <div class="stat-box gold">
+    <div class="stat-num">{{ invoices|length }}</div>
+    <div class="stat-lbl">Total Invoices</div>
+  </div>
+  {% if party.credit_limit %}
+    <div class="stat-box info">
+      <div class="stat-num">৳{{ party.credit_limit|floatformat:0 }}</div>
+      <div class="stat-lbl">Credit Limit</div>
+    </div>
+  {% endif %}
+</div>
+
+{% if party.address or party.notes %}
+  <div class="card">
+    <div class="card-body">
+      {% if party.address %}<p style="font-size:.85rem;line-height:1.6">{{ party.address|linebreaksbr }}</p>{% endif %}
+      {% if party.notes %}<p class="muted" style="font-size:.83rem;line-height:1.6;margin-top:.7rem">{{ party.notes|linebreaksbr }}</p>{% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Invoices</span>
+    {% if party.receivable_account %}
+      <a href="{% url 'finance:account_detail' party.receivable_account.pk %}" class="btn btn-ghost">Account ledger →</a>
+    {% endif %}
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Number</th><th>Issued</th><th>Due</th><th>Status</th><th class="num">Total</th><th class="num">Outstanding</th></tr>
+      </thead>
+      <tbody>
+        {% for invoice in invoices %}
+          <tr>
+            <td><a href="{% url 'finance:invoice_detail' invoice.pk %}"><strong>{{ invoice.display_number }}</strong></a></td>
+            <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+            <td>{{ invoice.due_date|date:"d M Y"|default:"—" }}</td>
+            <td>
+              {% if invoice.is_overdue %}
+                <span class="pill pill-bad">Overdue {{ invoice.days_overdue }}d</span>
+              {% elif invoice.status == 'paid' %}
+                <span class="pill pill-ok">Paid</span>
+              {% elif invoice.status == 'cancelled' %}
+                <span class="pill pill-muted">Cancelled</span>
+              {% elif invoice.status == 'draft' %}
+                <span class="pill pill-muted">Draft</span>
+              {% else %}
+                <span class="pill pill-warn">{{ invoice.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="num money">৳{{ invoice.total|floatformat:2 }}</td>
+            <td class="num">
+              {% if invoice.is_open %}
+                <span class="money neg">৳{{ invoice.amount_due|floatformat:2 }}</span>
+              {% else %}
+                <span class="money zero">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">🧾</div>
+              <p>No invoices for {{ party.name }} yet.</p>
+              <p style="margin-top:.6rem">
+                <a href="{% url 'finance:invoice_create' %}?party={{ party.pk }}" class="btn btn-gold">Create one</a>
+              </p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

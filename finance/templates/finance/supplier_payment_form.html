@@ -1,0 +1,53 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Pay Supplier{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:payment_list' %}">Payments</a> / Pay supplier</div>
+
+<div class="page-head">
+  <div>
+    <h1>Pay Supplier</h1>
+    <p>Reduces what you owe and takes the money out of the account you paid from.</p>
+  </div>
+  <div class="stat-box warning" style="min-width:190px">
+    <div class="stat-num">৳{{ payable_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Total You Owe</div>
+  </div>
+</div>
+
+{% include 'finance/partials/money_strip.html' %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="form-grid">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.party %}
+          {% include 'finance/partials/field.html' with field=form.date %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.amount %}
+          {% include 'finance/partials/field.html' with field=form.paid_from %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.reference %}
+        {% include 'finance/partials/field.html' with field=form.notes %}
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Record payment</button>
+          <a href="{% url 'finance:payment_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if not form.fields.party.queryset %}
+  <div class="alert alert-warning">
+    No suppliers on record yet.
+    <a href="{% url 'finance:party_create' %}"><strong>Add one</strong></a> with the type set to Supplier.
+  </div>
+{% endif %}
+{% endblock %}

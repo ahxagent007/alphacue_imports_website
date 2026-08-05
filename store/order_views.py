@@ -177,6 +177,14 @@ def manage_order_detail(request, order_number):
                     f"Order {order.order_number} marked as Delivered. "
                     f"Commission triggered{'.' if order.affiliate_code else ' (no affiliate).'}"
                 )
+
+                # Optional auto-invoicing — off unless the site turns it on.
+                from finance.integrations import on_order_delivered
+                result = on_order_delivered(order, created_by=request.user)
+                if result.failed:
+                    messages.warning(request, f"⚠️ Auto-invoice failed: {result.error}")
+                elif result.posted:
+                    messages.success(request, "Invoice raised and issued automatically.")
             else:
                 messages.success(
                     request,
@@ -219,6 +227,8 @@ def manage_order_status_ajax(request, order_number):
 
     if new_status == Order.STATUS_DELIVERED:
         order.trigger_commission()
+        from finance.integrations import on_order_delivered
+        on_order_delivered(order, created_by=request.user)
 
     return JsonResponse({
         'success':    True,

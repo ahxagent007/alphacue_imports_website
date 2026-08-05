@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'affiliate',
     'store',
+    'finance',
     'ckeditor',
     'ckeditor_uploader',
 ]
@@ -84,29 +85,38 @@ TEMPLATES = [
 WSGI_APPLICATION = 'alphacue_imports.wsgi.application'
 
 
-# ─── Database — MySQL ──────────────────────────────────────────────────────────
+# ─── Database ─────────────────────────────────────────────────────────────────
+# Controlled by DB_ENGINE in .env:
+#     DB_ENGINE=mysql   (default) — production on cPanel
+#     DB_ENGINE=sqlite            — local development
+#
+# Previously this block was defined twice and the SQLite version silently
+# overwrote the MySQL one, so production ran on db.sqlite3 regardless of .env.
 
-DATABASES = {
-    'default': {
-        'ENGINE':   'django.db.backends.mysql',
-        'NAME':     os.environ['DB_NAME'],
-        'USER':     os.environ['DB_USER'],
-        'PASSWORD': os.environ['DB_PASSWORD'],
-        'HOST':     os.getenv('DB_HOST', 'localhost'),
-        'PORT':     os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
-    }
-}
+DB_ENGINE = os.getenv('DB_ENGINE', 'mysql').strip().lower()
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if DB_ENGINE == 'sqlite':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME':   BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE':   'django.db.backends.mysql',
+            'NAME':     os.environ['DB_NAME'],
+            'USER':     os.environ['DB_USER'],
+            'PASSWORD': os.environ['DB_PASSWORD'],
+            'HOST':     os.getenv('DB_HOST', 'localhost'),
+            'PORT':     os.getenv('DB_PORT', '3306'),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
+    }
 
 
 
@@ -173,6 +183,33 @@ AFFILIATE_WEBHOOK_SECRET = os.getenv('AFFILIATE_WEBHOOK_SECRET', '')
 
 # Google Analytics
 GOOGLE_ANALYTICS_ID = os.getenv('GOOGLE_ANALYTICS_ID', '')
+
+
+# ─── Finance ──────────────────────────────────────────────────────────────────
+
+def _flag(name, default='False'):
+    return os.getenv(name, default).strip().lower() in ('true', '1', 'yes')
+
+
+# Post affiliate commissions and payouts to the ledger. On by default — without
+# it, commission costs and payouts never appear in the profit figure.
+FINANCE_POST_AFFILIATE = _flag('FINANCE_POST_AFFILIATE', 'True')
+
+# Raise and issue an invoice automatically when a website order is delivered.
+# Off by default: it creates numbered documents for every retail sale, which
+# most shops do not want. Turn it on if you invoice every order.
+FINANCE_AUTO_INVOICE_ON_DELIVERY = _flag('FINANCE_AUTO_INVOICE_ON_DELIVERY', 'False')
+
+# Restrict the finance panel to one group instead of all staff. Leave blank and
+# any staff user can get in; set it once more than one person has admin access.
+FINANCE_REQUIRED_GROUP = os.getenv('FINANCE_REQUIRED_GROUP', '').strip()
+
+# Reorder level for the "running low" warnings. Falls back rather than crashing
+# the whole site on a typo in .env.
+try:
+    FINANCE_LOW_STOCK_THRESHOLD = int(os.getenv('FINANCE_LOW_STOCK_THRESHOLD', '5'))
+except ValueError:
+    FINANCE_LOW_STOCK_THRESHOLD = 5
 
 
 # ─── Security headers (production only) ───────────────────────────────────────

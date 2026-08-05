@@ -1,0 +1,130 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{% if is_new %}New Purchase{% else %}Edit {{ purchase.purchase_no }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="crumb">
+  <a href="{% url 'finance:purchase_list' %}">Purchases</a> /
+  {% if is_new %}New{% else %}<a href="{% url 'finance:purchase_detail' purchase.pk %}">{{ purchase.purchase_no }}</a> / Edit{% endif %}
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>{% if is_new %}New Purchase{% else %}Edit {{ purchase.purchase_no }}{% endif %}</h1>
+    <p>
+      Enter the RMB costs now. Come back and fill in the weights when the shipment
+      lands — that is when the landed cost becomes final.
+    </p>
+  </div>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Stage 1 — at order</span></div>
+    <div class="card-body">
+      <div class="form-grid" style="max-width:none">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.purchase_type %}
+          {% include 'finance/partials/field.html' with field=form.supplier %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.purchase_date %}
+          {% include 'finance/partials/field.html' with field=form.fx_rate_rmb_to_bdt %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Stage 2 — on arrival</span>
+      <span class="muted" style="font-size:.78rem">Leave at zero until the shipment lands</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid" style="max-width:none">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.default_per_kg_charge_bdt %}
+          {% include 'finance/partials/field.html' with field=form.billed_weight_kg %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.extra_cost_bdt %}
+          {% include 'finance/partials/field.html' with field=form.correction_percent %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Products</span>
+      <span class="muted" style="font-size:.78rem">
+        Search to pick a product · leave a row blank to skip it ·
+        <a href="{% url 'finance:product_create' %}">add a new product</a>
+      </span>
+    </div>
+    <div class="table-wrap">
+      {{ formset.management_form }}
+      <table class="data-table" data-product-picker
+             data-search-url="{% url 'finance:product_search' %}">
+        <thead>
+          <tr>
+            <th style="min-width:230px">Product</th><th style="width:110px">Qty</th>
+            <th style="width:120px">¥ / pc</th><th style="width:130px">¥ shipping</th>
+            <th style="width:120px">৳ / pc</th><th style="width:130px">৳ transport</th>
+            <th style="width:120px">Weight kg</th><th style="width:120px">৳ / kg</th>
+            <th style="width:70px">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item_form in formset %}
+            <tr>
+              {{ item_form.id }}
+              <td class="combo">
+                {{ item_form.variant }}
+                <input type="text" class="form-input product-search" autocomplete="off"
+                       placeholder="Search by name or SKU…"
+                       value="{{ item_form.variant_label }}">
+                <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                <div class="combo-panel"></div>
+                {% for error in item_form.variant.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>{{ item_form.quantity }}</td>
+              <td>{{ item_form.unit_price_rmb }}</td>
+              <td>{{ item_form.domestic_shipping_rmb }}</td>
+              <td>{{ item_form.unit_cost_bdt }}</td>
+              <td>{{ item_form.local_transport_bdt }}</td>
+              <td>{{ item_form.entered_weight_kg }}</td>
+              <td>{{ item_form.per_kg_charge_bdt }}</td>
+              <td style="text-align:center">{% if item_form.instance.pk %}{{ item_form.DELETE }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.8rem;line-height:1.6">
+        Use the <strong>¥</strong> columns for import shipments and the <strong>৳</strong>
+        columns for local buys — whichever matches the purchase type above.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {% include 'finance/partials/field.html' with field=form.notes %}
+    </div>
+  </div>
+
+  <div class="form-actions" style="margin-bottom:2rem">
+    <button type="submit" class="btn btn-gold btn-lg">{% if is_new %}Create purchase{% else %}Save changes{% endif %}</button>
+    <a href="{% if is_new %}{% url 'finance:purchase_list' %}{% else %}{% url 'finance:purchase_detail' purchase.pk %}{% endif %}"
+       class="btn btn-ghost btn-lg">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{% include 'finance/partials/product_picker.html' %}
+{% endblock %}

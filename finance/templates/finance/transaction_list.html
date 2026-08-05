@@ -1,0 +1,62 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Transactions</h1>
+    <p>Everything posted to the ledger. Append-only — corrections appear as reversals.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} transaction{{ page_obj.paginator.count|pluralize }}</span>
+    {% if source %}<a href="{% url 'finance:transaction_list' %}" class="btn btn-ghost">Clear filter: {{ source }}</a>{% endif %}
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Date</th><th>Description</th><th>Accounts</th><th>Source</th><th class="num">Amount</th></tr>
+      </thead>
+      <tbody>
+        {% for txn in page_obj %}
+          <tr>
+            <td class="code-ref"><a href="{% url 'finance:transaction_detail' txn.pk %}">{{ txn.reference_no }}</a></td>
+            <td>{{ txn.date|date:"d M Y" }}</td>
+            <td>
+              {{ txn.description }}
+              {% if txn.is_reversed %}<span class="pill pill-bad" style="margin-left:.4rem">Reversed</span>{% endif %}
+              {% if txn.reversal_of_id %}<span class="pill pill-muted" style="margin-left:.4rem">Reversal</span>{% endif %}
+            </td>
+            <td class="muted" style="font-size:.78rem">
+              {% for line in txn.lines.all %}{{ line.account.code }}{% if not forloop.last %} · {% endif %}{% endfor %}
+            </td>
+            <td class="muted">{{ txn.source_type|default:"—" }}</td>
+            <td class="num money">৳{{ txn.total|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">📒</div>
+              <p>Nothing posted yet. Entry screens arrive in M2.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if source %}&source={{ source }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if source %}&source={{ source }}{% endif %}">Next →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

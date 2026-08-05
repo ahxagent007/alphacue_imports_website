@@ -1,0 +1,44 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Capital — {{ investor.name }}{% endblock %}
+
+{% block content %}
+<div class="crumb">
+  <a href="{% url 'finance:investor_list' %}">Investors</a> /
+  <a href="{% url 'finance:investor_detail' investor.pk %}">{{ investor.name }}</a> / Capital
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>Capital Movement</h1>
+    <p>Money {{ investor.name }} puts into the business, or takes back out.</p>
+  </div>
+  <div class="stat-box gold" style="min-width:180px">
+    <div class="stat-num">৳{{ investor.current_stake|floatformat:2 }}</div>
+    <div class="stat-lbl">Current Stake</div>
+  </div>
+</div>
+
+{% include 'finance/partials/money_strip.html' %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid">
+        {% include 'finance/partials/field.html' with field=form.movement %}
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.amount %}
+          {% include 'finance/partials/field.html' with field=form.date %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.account %}
+        {% include 'finance/partials/field.html' with field=form.notes %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Record</button>
+          <a href="{% url 'finance:investor_detail' investor.pk %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

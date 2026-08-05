@@ -1,0 +1,44 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Walk-in Invoice{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:invoice_list' %}">Invoices</a> / Walk-in</div>
+
+<div class="page-head">
+  <div>
+    <h1>Walk-in Invoice</h1>
+    <p>For someone with no record. Enter their name, then add the items on the next screen.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="form-grid">
+        {% include 'finance/partials/field.html' with field=form.customer_name %}
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.phone %}
+          {% include 'finance/partials/field.html' with field=form.issue_date %}
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Continue to items →</button>
+          <a href="{% url 'finance:invoice_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.6">
+      Buying on credit and coming back regularly? Add them as a
+      <a href="{% url 'finance:party_create' %}"><strong>wholesale client</strong></a> instead —
+      they get their own account and their dues stay tracked across every invoice.
+    </p>
+  </div>
+</div>
+{% endblock %}

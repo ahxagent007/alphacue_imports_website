@@ -1,0 +1,80 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Trial Balance{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Trial Balance</h1>
+    <p>The consistency proof. Every account's raw signed balance, which must add up to exactly zero.</p>
+  </div>
+  <form method="get" style="display:flex;gap:.5rem;align-items:center">
+    <input type="date" name="as_of" value="{{ as_of|default:'' }}"
+           style="background:#FAFAF8;border:1px solid #E8E4DC;border-radius:6px;padding:.45rem .7rem;font-family:inherit;font-size:.82rem">
+    <button type="submit" class="btn btn-gold">As of date</button>
+  </form>
+</div>
+
+{% if trial.is_balanced %}
+  <div class="alert alert-success">
+    <strong>Balanced.</strong> All entries sum to ৳0.00 — the ledger is internally consistent.
+  </div>
+{% else %}
+  <div class="alert alert-danger">
+    <strong>Out of balance by ৳{{ trial.total_signed|floatformat:2 }}.</strong>
+    Something wrote to <code>TransactionLine</code> without going through
+    <code>post_transaction()</code>. Investigate before trusting any figure in this system.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Accounts with a balance</span>
+    {% if as_of %}<span class="muted" style="font-size:.78rem">As of {{ as_of }}</span>{% endif %}
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Code</th><th>Account</th><th>Type</th>
+          <th class="num">Raw (signed)</th><th class="num">As read</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for account in trial.accounts %}
+          <tr>
+            <td class="code-ref">{{ account.code }}</td>
+            <td><a href="{% url 'finance:account_detail' account.pk %}"><strong>{{ account.name }}</strong></a></td>
+            <td class="muted">{{ account.get_type_display }}</td>
+            <td class="num">
+              <span class="money {% if account.signed_total > 0 %}pos{% else %}neg{% endif %}">
+                {% if account.signed_total > 0 %}+{% endif %}৳{{ account.signed_total|floatformat:2 }}
+              </span>
+            </td>
+            <td class="num money">৳{{ account.natural_total|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="icon">⚖️</div>
+              <p>No entries yet — an empty ledger is trivially balanced.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:#FAFAF8">
+          <td colspan="3" style="text-align:right;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#9A9188">Total</td>
+          <td class="num">
+            {% if trial.is_balanced %}
+              <span class="pill pill-ok">৳0.00 ✓</span>
+            {% else %}
+              <span class="pill pill-bad">৳{{ trial.total_signed|floatformat:2 }}</span>
+            {% endif %}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

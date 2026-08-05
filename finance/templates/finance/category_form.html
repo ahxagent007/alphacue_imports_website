@@ -1,0 +1,64 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}New Category{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:product_list' %}">Products</a> / New category</div>
+
+<div class="page-head">
+  <div>
+    <h1>New Category</h1>
+    <p>Every product belongs to one. Categories also group the storefront's shop pages.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid">
+        {% include 'finance/partials/field.html' with field=form.name %}
+        {% include 'finance/partials/field.html' with field=form.description %}
+        {% include 'finance/partials/field.html' with field=form.sort_order %}
+        <div class="form-field">
+          <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.85rem;font-weight:500;color:#1A1A1A">
+            {{ form.is_active }} Active
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Create category</button>
+          <a href="{% url 'finance:product_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Existing categories</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th class="num">Order</th><th class="num">Products</th></tr></thead>
+      <tbody>
+        {% for category in categories %}
+          <tr>
+            <td>
+              <strong>{{ category.name }}</strong>
+              {% if not category.is_active %}<span class="pill pill-muted" style="margin-left:.4rem">Inactive</span>{% endif %}
+            </td>
+            <td class="num">{{ category.sort_order }}</td>
+            <td class="num">{{ category.products.count }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">
+            <div class="empty-state">
+              <div class="icon">🗂️</div>
+              <p>No categories yet — this will be the first.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

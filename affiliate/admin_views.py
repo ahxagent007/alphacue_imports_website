@@ -192,6 +192,17 @@ def commission_action(request, commission_id):
         )
         messages.success(request, f"✅ Commission #{commission.pk} approved — ৳{commission.commission_amount:,.0f} moved to approved balance.")
 
+        # Approving is the point the business genuinely owes this money, so
+        # that is when it goes on the ledger. A finance problem is reported
+        # but never blocks the affiliate side.
+        from finance.integrations import on_commission_approved
+        result = on_commission_approved(commission, created_by=request.user)
+        if result.failed:
+            messages.warning(
+                request,
+                f"⚠️ Not recorded in the finance ledger: {result.error}",
+            )
+
     elif action == 'reject' and commission.status == Commission.STATUS_PENDING:
         commission.status = Commission.STATUS_REJECTED
         commission.save(update_fields=['status'])
@@ -328,5 +339,15 @@ def withdrawal_action(request, withdrawal_id):
             f"💳 ৳{wr.amount:,.0f} marked as paid to {wr.affiliate.full_name} "
             f"({wr.get_payment_method_display()} {wr.payment_account}). TXN: {txn_id}"
         )
+
+        # Money has actually left the wallet — put it on the ledger so the
+        # payout shows up in cash flow instead of quietly disappearing.
+        from finance.integrations import on_withdrawal_paid
+        result = on_withdrawal_paid(wr, created_by=request.user)
+        if result.failed:
+            messages.warning(
+                request,
+                f"⚠️ Not recorded in the finance ledger: {result.error}",
+            )
 
     return redirect(request.META.get('HTTP_REFERER', 'affiliate:withdrawal_queue'))

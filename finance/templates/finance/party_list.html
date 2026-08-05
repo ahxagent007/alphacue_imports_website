@@ -1,0 +1,82 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Clients{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Clients &amp; Suppliers</h1>
+    <p>Everyone you trade with. Wholesale clients get their own account so their dues are always current.</p>
+  </div>
+  <a href="{% url 'finance:party_create' %}" class="btn btn-gold btn-lg">+ New client</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ total_owed|floatformat:2 }}</div>
+    <div class="stat-lbl">Total Owed To You</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">{{ parties|length }}</div>
+    <div class="stat-lbl">{% if party_type %}Matching{% else %}Total{% endif %} Records</div>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="q">Search</label>
+    <input type="text" name="q" id="q" value="{{ search }}" class="form-input" placeholder="Name or phone">
+  </div>
+  <div class="form-field">
+    <label for="type">Type</label>
+    <select name="type" id="type" class="form-input">
+      <option value="">All types</option>
+      {% for value, label in type_choices %}
+        <option value="{{ value }}" {% if party_type == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if search or party_type %}<a href="{% url 'finance:party_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Name</th><th>Type</th><th>Phone</th><th>Credit limit</th><th class="num">Owes</th></tr>
+      </thead>
+      <tbody>
+        {% for party in parties %}
+          <tr>
+            <td>
+              <a href="{% url 'finance:party_detail' party.pk %}"><strong>{{ party.name }}</strong></a>
+              {% if not party.is_active %}<span class="pill pill-muted" style="margin-left:.4rem">Inactive</span>{% endif %}
+            </td>
+            <td class="muted">{{ party.get_party_type_display }}</td>
+            <td class="muted">{{ party.phone|default:"—" }}</td>
+            <td class="muted">{% if party.credit_limit %}৳{{ party.credit_limit|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td class="num">
+              {% if party.outstanding %}
+                <span class="money {% if party.is_over_credit_limit %}neg{% else %}pos{% endif %}">
+                  ৳{{ party.outstanding|floatformat:2 }}
+                </span>
+                {% if party.is_over_credit_limit %}<span class="pill pill-bad" style="margin-left:.4rem">Over limit</span>{% endif %}
+              {% else %}
+                <span class="money zero">৳0.00</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="icon">👥</div>
+              <p>{% if search or party_type %}Nothing matched that search.{% else %}No clients yet.{% endif %}</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:party_create' %}" class="btn btn-gold">Add the first one</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

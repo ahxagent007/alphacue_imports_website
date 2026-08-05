@@ -1,0 +1,121 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Invoices{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Invoices</h1>
+    <p>Drafts have no effect on any balance. Issuing puts the invoice on the ledger.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:invoice_walkin' %}" class="btn btn-ghost btn-lg">Walk-in</a>
+    <a href="{% url 'finance:invoice_create' %}" class="btn btn-gold btn-lg">+ New invoice</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ stats.owed|floatformat:2 }}</div>
+    <div class="stat-lbl">Outstanding</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">{{ stats.open }}</div>
+    <div class="stat-lbl">Open</div>
+  </div>
+  <div class="stat-box danger">
+    <div class="stat-num">{{ stats.overdue }}</div>
+    <div class="stat-lbl">Overdue</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">{{ stats.draft }}</div>
+    <div class="stat-lbl">Drafts</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">{{ stats.total }}</div>
+    <div class="stat-lbl">All Time</div>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="q">Search</label>
+    <input type="text" name="q" id="q" value="{{ search }}" class="form-input" placeholder="Number or client">
+  </div>
+  <div class="form-field">
+    <label for="status">Status</label>
+    <select name="status" id="status" class="form-input">
+      <option value="">All</option>
+      <option value="overdue" {% if status == 'overdue' %}selected{% endif %}>Overdue</option>
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if search or status %}<a href="{% url 'finance:invoice_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} invoice{{ page_obj.paginator.count|pluralize }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Number</th><th>Client</th><th>Issued</th><th>Due</th><th>Status</th><th class="num">Total</th><th class="num">Outstanding</th></tr>
+      </thead>
+      <tbody>
+        {% for invoice in page_obj %}
+          <tr>
+            <td><a href="{% url 'finance:invoice_detail' invoice.pk %}"><strong>{{ invoice.display_number }}</strong></a></td>
+            <td><a href="{% url 'finance:party_detail' invoice.party.pk %}">{{ invoice.party.name }}</a></td>
+            <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+            <td>{{ invoice.due_date|date:"d M Y"|default:"—" }}</td>
+            <td>
+              {% if invoice.is_overdue %}
+                <span class="pill pill-bad">Overdue {{ invoice.days_overdue }}d</span>
+              {% elif invoice.status == 'paid' %}
+                <span class="pill pill-ok">Paid</span>
+              {% elif invoice.status == 'cancelled' %}
+                <span class="pill pill-muted">Cancelled</span>
+              {% elif invoice.status == 'draft' %}
+                <span class="pill pill-muted">Draft</span>
+              {% else %}
+                <span class="pill pill-warn">{{ invoice.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="num money">৳{{ invoice.total|floatformat:2 }}</td>
+            <td class="num">
+              {% if invoice.is_open %}
+                <span class="money neg">৳{{ invoice.amount_due|floatformat:2 }}</span>
+              {% else %}
+                <span class="money zero">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">🧾</div>
+              <p>{% if search or status %}Nothing matched.{% else %}No invoices yet.{% endif %}</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:invoice_create' %}" class="btn btn-gold">Create the first one</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if status %}&status={{ status }}{% endif %}{% if search %}&q={{ search }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if status %}&status={{ status }}{% endif %}{% if search %}&q={{ search }}{% endif %}">Next →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

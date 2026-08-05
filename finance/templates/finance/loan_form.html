@@ -1,0 +1,60 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}New Loan{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:loan_list' %}">Loans</a> / New</div>
+
+<div class="page-head">
+  <div>
+    <h1>New Loan</h1>
+    <p>The installment schedule is worked out for you from the terms below.</p>
+  </div>
+</div>
+
+{% include 'finance/partials/money_strip.html' %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.direction %}
+          {% include 'finance/partials/field.html' with field=form.counterparty_name %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.principal %}
+          {% include 'finance/partials/field.html' with field=form.account %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.interest_rate %}
+          {% include 'finance/partials/field.html' with field=form.method %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.tenure_months %}
+          {% include 'finance/partials/field.html' with field=form.start_date %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.notes %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Record loan</button>
+          <a href="{% url 'finance:loan_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Flat or reducing?</span></div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.7">
+      <strong>Flat</strong> charges interest on the original amount for the whole term
+      and splits it evenly — the way most informal lending is quoted here.<br>
+      <strong>Reducing balance</strong> charges interest on what is still owed, so the
+      split shifts from interest to principal as the loan runs down. This is the
+      standard bank EMI, and works out cheaper for the same headline rate.
+    </p>
+  </div>
+</div>
+{% endblock %}

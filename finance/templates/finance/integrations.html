@@ -1,0 +1,128 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Integrations{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Integrations</h1>
+    <p>How the storefront and affiliate system feed the ledger.</p>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ commission_owed|floatformat:2 }}</div>
+    <div class="stat-lbl">Owed To Affiliates</div>
+    <div class="stat-sub">Approved but not yet paid out</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">{{ posted_affiliate_entries }}</div>
+    <div class="stat-lbl">Affiliate Entries Posted</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">{{ approved_commissions }}</div>
+    <div class="stat-lbl">Approved Commissions</div>
+  </div>
+  <div class="stat-box gold">
+    <div class="stat-num">{{ paid_withdrawals }}</div>
+    <div class="stat-lbl">Payouts Made</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">What is switched on</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Setting</th><th>State</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="code-ref">FINANCE_POST_AFFILIATE</td>
+          <td>{% if post_affiliate %}<span class="pill pill-ok">On</span>{% else %}<span class="pill pill-muted">Off</span>{% endif %}</td>
+          <td class="muted">
+            Approving a commission books the cost and the amount owed. Marking a
+            withdrawal paid takes the money out of the bKash or Nagad wallet.
+          </td>
+        </tr>
+        <tr>
+          <td class="code-ref">FINANCE_AUTO_INVOICE_ON_DELIVERY</td>
+          <td>{% if auto_invoice %}<span class="pill pill-ok">On</span>{% else %}<span class="pill pill-muted">Off</span>{% endif %}</td>
+          <td class="muted">
+            Raises and issues an invoice the moment a website order is marked
+            delivered. Off by default — most shops do not want a numbered
+            document for every small retail sale. With it off, invoice website
+            orders by hand from the order page.
+          </td>
+        </tr>
+        <tr>
+          <td class="code-ref">FINANCE_REQUIRED_GROUP</td>
+          <td>
+            {% if required_group %}<span class="pill pill-ok">{{ required_group }}</span>
+            {% else %}<span class="pill pill-muted">All staff</span>{% endif %}
+          </td>
+          <td class="muted">
+            Restricts this whole panel to one Django group. Worth setting once
+            more than one person has admin access — a packing assistant does not
+            need to see the bank balance.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.83rem;line-height:1.7">
+      All three are read from <code>.env</code>. Change them there and restart the app.
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Stock and sales</span></div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.8">
+      <strong>Checkout</strong> takes stock out through the ledger. Every sale becomes a
+      dated movement showing which shipment the units came from, and their cost is
+      posted to Cost of Goods Sold. An oversell is recorded with a note rather than
+      failing the customer's checkout.<br><br>
+      <strong>Revenue</strong> is recognised when you issue an invoice, not at checkout.
+      If you never invoice website orders you will see their cost without their
+      revenue — turn on auto-invoicing above, or invoice them by hand.
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Backfill older affiliate activity</span></div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.7;margin-bottom:1rem">
+      Commissions approved and payouts made before the finance module existed are
+      not on the ledger. This posts them. Preview first — nothing is written until
+      you apply it, and anything already posted is skipped.
+    </p>
+
+    {% if summary %}
+      <div class="alert {% if summary.errors %}alert-warning{% else %}alert-success{% endif %}">
+        <strong>{% if summary.dry_run %}Preview{% else %}Applied{% endif %}:</strong>
+        {{ summary.commissions_posted }} of {{ summary.commissions_found }} commission(s)
+        and {{ summary.withdrawals_posted }} of {{ summary.withdrawals_found }} payout(s)
+        {% if summary.dry_run %}would be posted{% else %}posted{% endif %}.
+        {% if summary.commissions_skipped or summary.withdrawals_skipped %}
+          {{ summary.commissions_skipped|add:summary.withdrawals_skipped }} already on the ledger.
+        {% endif %}
+      </div>
+      {% if summary.errors %}
+        <div class="alert alert-danger">
+          {% for error in summary.errors %}{{ error }}<br>{% endfor %}
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-actions">
+        <button type="submit" name="action" value="preview" class="btn btn-ghost btn-lg">Preview</button>
+        <button type="submit" name="action" value="apply" class="btn btn-gold btn-lg">Post them</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

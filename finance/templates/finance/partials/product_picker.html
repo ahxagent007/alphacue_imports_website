@@ -1,0 +1,259 @@
+{% comment %}
+Shared product picker for line-item tables.
+
+Used by both the invoice and purchase forms. To wire a table up:
+
+  1. Put `data-product-picker data-search-url="{% url 'finance:product_search' %}"`
+     on the <table>. Add `data-stock-warning="1"` only where selling more than
+     you hold is a mistake — on a purchase you are buying stock in, so warning
+     about low stock there would be noise.
+  2. Give the product cell `class="combo"` containing the hidden variant field,
+     a `.product-search` text input, a `.combo-clear` button, a `.combo-panel`
+     and a `.line-warn`.
+  3. Include this partial once, inside {% block extra_js %}.
+
+Fields are filled only if the row actually has them, so an invoice row gets its
+description, SKU and price while a purchase row just gets the product linked —
+a purchase records what you paid, which has nothing to do with the shelf price.
+{% endcomment %}
+<script>
+(function () {
+  'use strict';
+
+  function fieldIn(row, suffix) {
+    return row.querySelector('[name$="-' + suffix + '"]');
+  }
+
+  function stockClass(item) {
+    if (!item.tracked) { return 'ok'; }
+    if (item.stock <= 0) { return 'out'; }
+    if (item.stock <= 5) { return 'low'; }
+    return 'ok';
+  }
+
+  function stockLabel(item) {
+    if (!item.tracked) { return 'not tracked'; }
+    if (item.stock <= 0) { return 'out of stock'; }
+    return item.stock + ' in stock';
+  }
+
+  function initCombo(combo, searchUrl, warnOnOverstock) {
+    var input  = combo.querySelector('.product-search');
+    var hidden = combo.querySelector('input[type="hidden"]');
+    var panel  = combo.querySelector('.combo-panel');
+    var warn   = combo.querySelector('.line-warn');
+    var clear  = combo.querySelector('.combo-clear');
+    var row    = combo.closest('tr');
+
+    if (!input || !hidden || !panel || !row) { return; }
+
+    // Only present on some line types — each is guarded before use.
+    var description = fieldIn(row, 'description');
+    var sku         = fieldIn(row, 'sku');
+    var price       = fieldIn(row, 'unit_price');
+    var quantity    = fieldIn(row, 'quantity');
+
+    var results = [];
+    var activeIndex = -1;
+    var timer = null;
+    var controller = null;
+
+    if (hidden.value) { combo.classList.add('has-value'); }
+
+    function close() {
+      panel.classList.remove('open');
+      panel.innerHTML = '';
+      results = [];
+      activeIndex = -1;
+    }
+
+    function checkStock() {
+      if (!warn || !warnOnOverstock) { return; }
+
+      var stock = parseInt(combo.dataset.stock, 10);
+      var tracked = combo.dataset.tracked === '1';
+      var wanted = parseInt(quantity && quantity.value, 10);
+
+      if (!hidden.value || !tracked || isNaN(stock) || isNaN(wanted)) {
+        warn.classList.remove('show');
+        return;
+      }
+      if (wanted > stock) {
+        warn.textContent = 'Only ' + stock + ' in stock';
+        warn.classList.add('show');
+      } else {
+        warn.classList.remove('show');
+      }
+    }
+
+    function choose(item) {
+      hidden.value = item.id;
+      input.value = item.label;
+      combo.classList.add('has-value');
+      combo.dataset.stock = item.stock;
+      combo.dataset.tracked = item.tracked ? '1' : '0';
+
+      if (description) { description.value = item.label; }
+      if (sku) { sku.value = item.sku; }
+      if (price) { price.value = item.price; }
+      if (quantity && !quantity.value) { quantity.value = 1; }
+
+      close();
+      checkStock();
+      if (quantity) { quantity.focus(); quantity.select(); }
+    }
+
+    function highlight(index) {
+      var items = panel.querySelectorAll('.combo-item');
+      items.forEach(function (el) { el.classList.remove('active'); });
+      if (index >= 0 && items[index]) {
+        items[index].classList.add('active');
+        items[index].scrollIntoView({block: 'nearest'});
+      }
+      activeIndex = index;
+    }
+
+    function render(list, query) {
+      panel.innerHTML = '';
+      results = list;
+      activeIndex = -1;
+
+      if (!list.length) {
+        var empty = document.createElement('div');
+        empty.className = 'combo-hint';
+        empty.textContent = query
+          ? 'No product matches "' + query + '".'
+          : 'Start typing to search the catalogue.';
+        panel.appendChild(empty);
+        panel.classList.add('open');
+        return;
+      }
+
+      list.forEach(function (item, index) {
+        var el = document.createElement('div');
+        el.className = 'combo-item';
+
+        var name = document.createElement('div');
+        name.className = 'combo-name';
+        name.textContent = item.label;
+
+        var meta = document.createElement('div');
+        meta.className = 'combo-meta';
+
+        var priceEl = document.createElement('span');
+        priceEl.textContent = '৳' + item.price;
+        meta.appendChild(priceEl);
+
+        if (item.sku) {
+          var skuEl = document.createElement('span');
+          skuEl.className = 'combo-sku';
+          skuEl.textContent = item.sku;
+          meta.appendChild(skuEl);
+        }
+
+        var stockEl = document.createElement('span');
+        stockEl.className = 'combo-stock ' + stockClass(item);
+        stockEl.textContent = stockLabel(item);
+        meta.appendChild(stockEl);
+
+        el.appendChild(name);
+        el.appendChild(meta);
+
+        el.addEventListener('mousedown', function (event) {
+          event.preventDefault();   // keep focus so blur does not close first
+          choose(item);
+        });
+        el.addEventListener('mouseenter', function () { highlight(index); });
+
+        panel.appendChild(el);
+      });
+
+      panel.classList.add('open');
+    }
+
+    function search(query) {
+      if (controller) { controller.abort(); }
+      controller = new AbortController();
+
+      fetch(searchUrl + '?q=' + encodeURIComponent(query), {
+        signal: controller.signal,
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+      })
+        .then(function (response) {
+          if (!response.ok) { throw new Error(response.status); }
+          return response.json();
+        })
+        .then(function (data) { render(data.results, query); })
+        .catch(function (error) {
+          if (error.name === 'AbortError') { return; }
+          panel.innerHTML =
+            '<div class="combo-hint">Could not reach the catalogue. ' +
+            'Reload the page and try again.</div>';
+          panel.classList.add('open');
+        });
+    }
+
+    input.addEventListener('input', function () {
+      // Typing means they are looking for something else — drop the old link
+      // so a stale product id cannot be saved against edited text.
+      hidden.value = '';
+      combo.classList.remove('has-value');
+      if (warn) { warn.classList.remove('show'); }
+
+      clearTimeout(timer);
+      var query = input.value.trim();
+      timer = setTimeout(function () { search(query); }, 180);
+    });
+
+    input.addEventListener('focus', function () {
+      if (!panel.classList.contains('open') && input.value.trim()) {
+        search(input.value.trim());
+      }
+    });
+
+    input.addEventListener('keydown', function (event) {
+      if (!panel.classList.contains('open')) {
+        if (event.key === 'ArrowDown') { search(input.value.trim()); event.preventDefault(); }
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        highlight(Math.min(activeIndex + 1, results.length - 1));
+        event.preventDefault();
+      } else if (event.key === 'ArrowUp') {
+        highlight(Math.max(activeIndex - 1, 0));
+        event.preventDefault();
+      } else if (event.key === 'Enter') {
+        // Never let Enter submit the whole form while the list is open.
+        event.preventDefault();
+        if (activeIndex >= 0 && results[activeIndex]) { choose(results[activeIndex]); }
+      } else if (event.key === 'Escape') {
+        close();
+      }
+    });
+
+    input.addEventListener('blur', function () { setTimeout(close, 120); });
+
+    if (clear) {
+      clear.addEventListener('click', function () {
+        hidden.value = '';
+        input.value = '';
+        combo.classList.remove('has-value');
+        if (warn) { warn.classList.remove('show'); }
+        delete combo.dataset.stock;
+        input.focus();
+      });
+    }
+
+    if (quantity) { quantity.addEventListener('input', checkStock); }
+  }
+
+  document.querySelectorAll('[data-product-picker]').forEach(function (container) {
+    var searchUrl = container.dataset.searchUrl;
+    var warnOnOverstock = container.dataset.stockWarning === '1';
+    if (!searchUrl) { return; }
+    container.querySelectorAll('.combo').forEach(function (combo) {
+      initCombo(combo, searchUrl, warnOnOverstock);
+    });
+  });
+})();
+</script>

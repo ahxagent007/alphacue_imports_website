@@ -1,0 +1,12 @@
+{% comment %}
+Per-account balance strip. Expects `money_accounts` — an annotated queryset
+from services.accounts_with_balances(types=Account.MONEY_TYPES).
+{% endcomment %}
+<div class="stat-row">
+  {% for account in money_accounts %}
+    <div class="stat-box {% if account.natural_total > 0 %}success{% elif account.natural_total < 0 %}danger{% else %}info{% endif %}">
+      <div class="stat-num">৳{{ account.natural_total|floatformat:2 }}</div>
+      <div class="stat-lbl">{{ account.name }}</div>
+    </div>
+  {% endfor %}
+</div>

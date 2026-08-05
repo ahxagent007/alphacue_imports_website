@@ -1,0 +1,108 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ investor.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  @media print{
+    .admin-header,.sidebar,.no-print{display:none !important}
+    .admin-main{padding:0}body{background:#fff}
+    @page{margin:14mm}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crumb no-print"><a href="{% url 'finance:investor_list' %}">Investors</a> / {{ investor.name }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ investor.name }}</h1>
+    <p>
+      Investor statement
+      {% if investor.phone %} · {{ investor.phone }}{% endif %}
+      · joined {{ investor.joined_on|date:"d M Y" }}
+    </p>
+  </div>
+  <div class="no-print" style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <button onclick="window.print()" class="btn btn-ghost btn-lg">Print</button>
+    <a href="{% url 'finance:investor_edit' investor.pk %}" class="btn btn-ghost btn-lg">Edit</a>
+    <a href="{% url 'finance:investor_capital' investor.pk %}" class="btn btn-gold btn-lg">Record capital</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ statement.closing_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Current Stake</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ statement.capital_in|floatformat:2 }}</div>
+    <div class="stat-lbl">Capital In</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ statement.drawings|floatformat:2 }}</div>
+    <div class="stat-lbl">Drawings</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">{{ percent }}%</div>
+    <div class="stat-lbl">Ownership</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Account movements</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Date</th><th>Description</th><th class="num">Change</th><th class="num">Stake</th></tr></thead>
+      <tbody>
+        {% for row in statement.rows %}
+          <tr>
+            <td class="code-ref">
+              <a href="{% url 'finance:transaction_detail' row.transaction.pk %}">{{ row.transaction.reference_no }}</a>
+            </td>
+            <td>{{ row.transaction.date|date:"d M Y" }}</td>
+            <td>{{ row.transaction.description }}</td>
+            <td class="num">
+              <span class="money {% if row.change > 0 %}pos{% else %}neg{% endif %}">
+                {% if row.change > 0 %}+{% endif %}৳{{ row.change|floatformat:2 }}
+              </span>
+            </td>
+            <td class="num money">৳{{ row.running_balance|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="icon">💼</div>
+              <p>{{ investor.name }} has not put anything in yet.</p>
+              <p class="no-print" style="margin-top:.6rem">
+                <a href="{% url 'finance:investor_capital' investor.pk %}" class="btn btn-gold">Record capital</a>
+              </p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if shares %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Profit shares</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Period</th><th>Shared on</th><th class="num">Ownership</th><th class="num">Share</th></tr></thead>
+        <tbody>
+          {% for share in shares %}
+            <tr>
+              <td>{{ share.distribution.period_start|date:"d M Y" }} — {{ share.distribution.period_end|date:"d M Y" }}</td>
+              <td>{{ share.distribution.distribution_date|date:"d M Y" }}</td>
+              <td class="num">{{ share.ownership_percent }}%</td>
+              <td class="num money">৳{{ share.amount|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

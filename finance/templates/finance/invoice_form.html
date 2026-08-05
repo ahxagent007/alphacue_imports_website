@@ -1,0 +1,115 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{% if is_new %}New Invoice{% else %}Edit {{ invoice.display_number }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="crumb">
+  <a href="{% url 'finance:invoice_list' %}">Invoices</a> /
+  {% if is_new %}New{% else %}<a href="{% url 'finance:invoice_detail' invoice.pk %}">{{ invoice.display_number }}</a> / Edit{% endif %}
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>{% if is_new %}New Invoice{% else %}Edit Draft{% endif %}</h1>
+    <p>This stays a draft until you issue it. Nothing hits the ledger yet.</p>
+  </div>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Details</span></div>
+    <div class="card-body">
+      <div class="form-grid" style="max-width:none">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.party %}
+          {% include 'finance/partials/field.html' with field=form.issue_date %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.payment_terms_days %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Lines</span>
+      <span class="muted" style="font-size:.78rem">
+        Search a product to fill the row, or just type a description for anything not in the catalogue
+      </span>
+    </div>
+    <div class="table-wrap">
+      {{ formset.management_form }}
+      <table class="data-table" data-product-picker data-stock-warning="1"
+             data-search-url="{% url 'finance:product_search' %}">
+        <thead>
+          <tr>
+            <th style="min-width:230px">Product</th>
+            <th style="min-width:190px">Description</th>
+            <th style="width:155px">SKU</th>
+            <th style="width:130px">Unit price</th><th style="width:110px">Qty</th>
+            <th style="width:125px">Discount</th><th style="width:70px">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item_form in formset %}
+            <tr class="line-row">
+              {{ item_form.id }}
+              <td class="combo">
+                {{ item_form.variant }}
+                <input type="text" class="form-input product-search" autocomplete="off"
+                       placeholder="Search by name or SKU…"
+                       value="{{ item_form.variant_label }}">
+                <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                <div class="combo-panel"></div>
+                <div class="line-warn"></div>
+                {% for error in item_form.variant.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.description }}
+                {% for error in item_form.description.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                {% for error in item_form.non_field_errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>{{ item_form.sku }}</td>
+              <td>
+                {{ item_form.unit_price }}
+                {% for error in item_form.unit_price.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.quantity }}
+                {% for error in item_form.quantity.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>{{ item_form.discount }}</td>
+              <td style="text-align:center">{% if item_form.instance.pk %}{{ item_form.DELETE }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Totals &amp; notes</span></div>
+    <div class="card-body">
+      <div class="form-grid" style="max-width:none">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.discount %}
+          {% include 'finance/partials/field.html' with field=form.delivery_charge %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.notes %}
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions" style="margin-bottom:2rem">
+    <button type="submit" class="btn btn-gold btn-lg">{% if is_new %}Create draft{% else %}Save draft{% endif %}</button>
+    <a href="{% if is_new %}{% url 'finance:invoice_list' %}{% else %}{% url 'finance:invoice_detail' invoice.pk %}{% endif %}"
+       class="btn btn-ghost btn-lg">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{% include 'finance/partials/product_picker.html' %}
+{% endblock %}

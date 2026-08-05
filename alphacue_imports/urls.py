@@ -9,6 +9,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('', include('store.urls', namespace='store')),
     path('', include('affiliate.urls', namespace='affiliate')),
+    path('', include('finance.urls', namespace='finance')),
     path('favicon.ico', RedirectView.as_view(url='/static/store/favicon.ico', permanent=True)),
     path('ckeditor/', include('ckeditor_uploader.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

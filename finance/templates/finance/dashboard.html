@@ -1,0 +1,185 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Finance Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Finance</h1>
+    <p>How the business is doing, right now.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:expense_create' %}" class="btn btn-ghost btn-lg">+ Expense</a>
+    <a href="{% url 'finance:payment_create' %}" class="btn btn-ghost btn-lg">+ Payment</a>
+    <a href="{% url 'finance:invoice_create' %}" class="btn btn-gold btn-lg">+ Invoice</a>
+  </div>
+</div>
+
+{% if not trial.is_balanced %}
+  <div class="alert alert-danger">
+    <strong>Ledger out of balance by ৳{{ trial.total_signed|floatformat:2 }}.</strong>
+    Something wrote to the ledger without going through <code>post_transaction()</code>.
+    Check the <a href="{% url 'finance:trial_balance' %}"><strong>trial balance</strong></a>
+    before trusting any figure here.
+  </div>
+{% endif %}
+
+{% if receivables.overdue_count %}
+  <div class="alert alert-warning">
+    <strong>৳{{ receivables.overdue_total|floatformat:2 }} is overdue</strong>
+    across {{ receivables.overdue_count }} invoice{{ receivables.overdue_count|pluralize }}.
+    <a href="{% url 'finance:dues_dashboard' %}"><strong>Chase it →</strong></a>
+  </div>
+{% endif %}
+
+{% if affiliate_owed %}
+  <div class="alert alert-warning">
+    <strong>৳{{ affiliate_owed|floatformat:2 }} owed to affiliates</strong>
+    in approved commission not yet paid out.
+    <a href="{% url 'finance:integrations' %}"><strong>See integrations →</strong></a>
+  </div>
+{% endif %}
+
+{% if loans.overdue %}
+  <div class="alert alert-danger">
+    <strong>{{ loans.overdue|length }} loan installment{{ loans.overdue|length|pluralize }} past due</strong>
+    — ৳{{ loans.overdue_total|floatformat:2 }}.
+    <a href="{% url 'finance:loan_list' %}"><strong>See loans →</strong></a>
+  </div>
+{% endif %}
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ cash_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Cash on Hand</div>
+    <div class="stat-sub">Cash + bank + mobile money</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ receivable_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Owed To You</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ payable_total|floatformat:2 }}</div>
+    <div class="stat-lbl">You Owe</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ stock_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Stock Value</div>
+  </div>
+  <div class="stat-box danger">
+    <div class="stat-num">৳{{ loan_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Loans Outstanding</div>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box {% if month_profit.profit >= 0 %}success{% else %}danger{% endif %}">
+    <div class="stat-num">৳{{ month_profit.profit|floatformat:2 }}</div>
+    <div class="stat-lbl">This Month</div>
+    <div class="stat-sub">Since {{ month_start|date:"d M" }} · income ৳{{ month_profit.income|floatformat:0 }}, spent ৳{{ month_profit.expense|floatformat:0 }}</div>
+  </div>
+  <div class="stat-box {% if profit.profit >= 0 %}gold{% else %}danger{% endif %}">
+    <div class="stat-num">৳{{ profit.profit|floatformat:2 }}</div>
+    <div class="stat-lbl">All Time Profit</div>
+    <div class="stat-sub">income ৳{{ profit.income|floatformat:0 }}, spent ৳{{ profit.expense|floatformat:0 }}</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">{{ draft_invoices }}</div>
+    <div class="stat-lbl">Draft Invoices</div>
+    <div class="stat-sub">Not yet issued</div>
+  </div>
+  <div class="stat-box {% if low_stock %}warning{% else %}success{% endif %}">
+    <div class="stat-num">{{ low_stock|length }}</div>
+    <div class="stat-lbl">Running Low</div>
+    <div class="stat-sub">5 or fewer left</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Money Accounts</span>
+    <a href="{% url 'finance:daybook' %}" class="btn btn-ghost">Day book →</a>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Code</th><th>Account</th><th>Type</th><th class="num">Balance</th></tr></thead>
+      <tbody>
+        {% for account in money_accounts %}
+          <tr>
+            <td class="code-ref">{{ account.code }}</td>
+            <td><a href="{% url 'finance:account_detail' account.pk %}"><strong>{{ account.name }}</strong></a></td>
+            <td class="muted">{{ account.get_type_display }}</td>
+            <td class="num">
+              <span class="money {% if account.natural_total > 0 %}pos{% elif account.natural_total < 0 %}neg{% else %}zero{% endif %}">
+                ৳{{ account.natural_total|floatformat:2 }}
+              </span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">
+            <div class="empty-state">
+              <div class="icon">🗂️</div>
+              <p>No accounts yet. Run <code>python manage.py seed_chart_of_accounts</code> to create the defaults.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if low_stock %}
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Running low</span>
+      <a href="{% url 'finance:stock_list' %}" class="btn btn-ghost">All stock →</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Product</th><th class="num">Left</th><th class="num">Sells at</th></tr></thead>
+        <tbody>
+          {% for variant in low_stock|slice:":8" %}
+            <tr>
+              <td><a href="{% url 'finance:stock_detail' variant.pk %}">{{ variant.product.name }} — {{ variant.name }}</a></td>
+              <td class="num"><span class="money {% if variant.stock == 0 %}neg{% endif %}">{{ variant.stock }}</span></td>
+              <td class="num">৳{{ variant.price|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Recent Transactions</span>
+    <span class="muted" style="font-size:.78rem">{{ txn_count }} posted · {{ account_count }} active accounts</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Date</th><th>Description</th><th>Source</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        {% for txn in recent %}
+          <tr>
+            <td class="code-ref"><a href="{% url 'finance:transaction_detail' txn.pk %}">{{ txn.reference_no }}</a></td>
+            <td>{{ txn.date|date:"d M Y" }}</td>
+            <td>
+              {{ txn.description }}
+              {% if txn.is_reversed %}<span class="pill pill-bad" style="margin-left:.4rem">Reversed</span>{% endif %}
+            </td>
+            <td class="muted">{{ txn.source_type|default:"—" }}</td>
+            <td class="num money">৳{{ txn.total|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="icon">📒</div>
+              <p>Nothing posted yet. Start with your opening balances.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

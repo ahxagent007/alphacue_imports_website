@@ -1,0 +1,126 @@
+{% extends 'finance/base_finance.html' %}
+{% load finance_extras %}
+{% block title %}Dues{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dues &amp; Payments</h1>
+    <p>What clients owe you, how late it is, and what you owe suppliers.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:supplier_payment_create' %}" class="btn btn-ghost btn-lg">Pay supplier</a>
+    <a href="{% url 'finance:payment_create' %}" class="btn btn-gold btn-lg">+ Record payment</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ summary.open_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Owed To You</div>
+    <div class="stat-sub">{{ summary.open_count }} open invoice{{ summary.open_count|pluralize }}</div>
+  </div>
+  <div class="stat-box danger">
+    <div class="stat-num">৳{{ summary.overdue_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Overdue</div>
+    <div class="stat-sub">{{ summary.overdue_count }} invoice{{ summary.overdue_count|pluralize }} past due</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ payable_total|floatformat:2 }}</div>
+    <div class="stat-lbl">You Owe Suppliers</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">How late the money is</span>
+    <a href="{% url 'finance:ageing' %}" class="btn btn-ghost">Full ageing report →</a>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>{% for bucket in ageing.buckets %}<th class="num">{{ bucket }}</th>{% endfor %}<th class="num">Total</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          {% for bucket in ageing.buckets %}
+            <td class="num">
+              <span class="money {% if forloop.counter > 2 %}neg{% endif %}">
+                ৳{{ ageing.bucket_totals|get_item:bucket|floatformat:2 }}
+              </span>
+            </td>
+          {% endfor %}
+          <td class="num money">৳{{ ageing.grand_total|floatformat:2 }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Most overdue</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Invoice</th><th>Client</th><th>Due</th><th>Late by</th><th class="num">Outstanding</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for invoice in overdue %}
+          <tr>
+            <td><a href="{% url 'finance:invoice_detail' invoice.pk %}"><strong>{{ invoice.display_number }}</strong></a></td>
+            <td><a href="{% url 'finance:party_detail' invoice.party.pk %}">{{ invoice.party.name }}</a></td>
+            <td>{{ invoice.due_date|date:"d M Y" }}</td>
+            <td><span class="pill pill-bad">{{ invoice.days_overdue }} day{{ invoice.days_overdue|pluralize }}</span></td>
+            <td class="num"><span class="money neg">৳{{ invoice.amount_due|floatformat:2 }}</span></td>
+            <td class="num">
+              <a href="{% url 'finance:payment_create' %}?party={{ invoice.party.pk }}" class="btn btn-ghost">Record payment</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">✅</div>
+              <p>Nothing overdue. Every open invoice is still within its terms.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Recent payments</span>
+    <a href="{% url 'finance:payment_list' %}" class="btn btn-ghost">All payments →</a>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Reference</th><th>Date</th><th>Party</th><th>Into / From</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        {% for payment in recent_payments %}
+          <tr>
+            <td class="code-ref">{{ payment.reference_no }}</td>
+            <td>{{ payment.date|date:"d M Y" }}</td>
+            <td><a href="{% url 'finance:party_detail' payment.party.pk %}">{{ payment.party.name }}</a></td>
+            <td class="muted">{{ payment.account.name }}</td>
+            <td class="num">
+              <span class="money {% if payment.direction == 'in' %}pos{% else %}neg{% endif %}">
+                {% if payment.direction == 'in' %}+{% else %}−{% endif %}৳{{ payment.amount|floatformat:2 }}
+              </span>
+              {% if payment.is_reversed %}<span class="pill pill-bad" style="margin-left:.4rem">Reversed</span>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="icon">💳</div>
+              <p>No payments recorded yet.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

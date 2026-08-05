@@ -1,0 +1,58 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Opening Balance — {{ account.name }}{% endblock %}
+
+{% block content %}
+<div class="crumb">
+  <a href="{% url 'finance:account_list' %}">Accounts</a> /
+  <a href="{% url 'finance:account_detail' account.pk %}">{{ account.code }}</a> / Opening balance
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>Opening Balance</h1>
+    <p>What {{ account.name }} already held on the day your books start.</p>
+  </div>
+</div>
+
+{% if already_set %}
+  <div class="alert alert-warning">
+    An opening balance has already been recorded for this account. To change it,
+    reverse the existing entry from the
+    <a href="{% url 'finance:account_detail' account.pk %}"><strong>account ledger</strong></a> first.
+  </div>
+{% else %}
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+          <div class="form-row">
+            {% include 'finance/partials/field.html' with field=form.date %}
+            {% include 'finance/partials/field.html' with field=form.amount %}
+          </div>
+
+          <div class="alert alert-warning" style="margin:0">
+            Enter the figure as a positive number.
+            {% if account.is_debit_normal %}
+              This is what you <strong>had</strong> in {{ account.name }}.
+            {% else %}
+              This is what you <strong>owed</strong> on {{ account.name }}.
+            {% endif %}
+            The other side is posted to <strong>3900 Opening Balances</strong>.
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-gold btn-lg">Record opening balance</button>
+            <a href="{% url 'finance:account_detail' account.pk %}" class="btn btn-ghost btn-lg">Cancel</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

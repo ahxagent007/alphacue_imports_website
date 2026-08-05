@@ -1,0 +1,205 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ invoice.display_number }} — {{ settings.site_name }}</title>
+  <link rel="icon" type="image/x-icon" href="{% static 'store/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--gold:#C9A84C;--gold-d:#A07830;--ink:#1A1208;--line:#E8E4DC;--muted:#8A8480}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:#F5F3EF;color:#1A1A1A;font-family:'Inter',sans-serif;padding:2rem 1rem;font-size:14px}
+
+    .toolbar{max-width:820px;margin:0 auto 1rem;display:flex;gap:.6rem;justify-content:flex-end;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.2rem;border:none;border-radius:6px;font-family:inherit;font-size:.83rem;font-weight:600;cursor:pointer;text-decoration:none}
+    .btn-gold{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#0A0A0A}
+    .btn-ghost{background:#fff;color:#5A5450;border:1px solid var(--line)}
+
+    .sheet{max-width:820px;margin:0 auto;background:#fff;padding:2.5rem;border:1px solid var(--line);border-radius:10px}
+
+    .head{display:flex;justify-content:space-between;gap:2rem;flex-wrap:wrap;padding-bottom:1.5rem;border-bottom:2px solid var(--gold)}
+    .brand{display:flex;align-items:center;gap:.8rem}
+    .brand img{height:52px;width:52px;object-fit:contain}
+    .brand-name{font-family:'Cinzel',serif;font-size:1.35rem;font-weight:700;color:var(--ink);line-height:1.2}
+    .brand-meta{font-size:.78rem;color:var(--muted);line-height:1.6;margin-top:.3rem}
+    .doc-title{text-align:right}
+    .doc-title h1{font-family:'Cinzel',serif;font-size:1.8rem;font-weight:700;color:var(--ink);letter-spacing:.05em}
+    .doc-num{font-size:.95rem;font-weight:700;color:var(--gold-d);margin-top:.2rem}
+    .doc-dates{font-size:.78rem;color:var(--muted);line-height:1.7;margin-top:.5rem}
+
+    .parties{display:grid;grid-template-columns:1fr 1fr;gap:2rem;padding:1.5rem 0;border-bottom:1px solid var(--line)}
+    .party-label{font-size:.66rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.45rem}
+    .party-name{font-size:1rem;font-weight:700;color:var(--ink)}
+    .party-meta{font-size:.82rem;color:#5A5450;line-height:1.7;margin-top:.25rem}
+
+    table{width:100%;border-collapse:collapse;margin-top:1.5rem}
+    thead th{font-size:.66rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:.6rem .7rem;text-align:left;border-bottom:1px solid var(--line);background:#FAFAF8}
+    tbody td{padding:.75rem .7rem;border-bottom:1px solid #F2EFEA;font-size:.86rem;vertical-align:top}
+    .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .item-sku{font-size:.73rem;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:.15rem}
+
+    .totals{margin-top:1.2rem;margin-left:auto;width:100%;max-width:320px}
+    .totals tr td{padding:.4rem .7rem;border:none;font-size:.86rem}
+    .totals tr td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+    .totals .grand td{border-top:2px solid var(--gold);padding-top:.7rem;font-weight:700;font-size:1.05rem;color:var(--ink)}
+    .totals .muted-row td{color:var(--muted)}
+
+    .status-stamp{display:inline-block;padding:.25rem .8rem;border-radius:4px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-top:.5rem}
+    .stamp-paid{background:#D1FAE5;color:#065F46;border:1px solid #10B981}
+    .stamp-due{background:#FEF3C7;color:#92600A;border:1px solid #D4A017}
+    .stamp-overdue{background:#FEE2E2;color:#991B1B;border:1px solid #EF4444}
+    .stamp-cancelled{background:#F0EDE8;color:#5A5450;border:1px solid #D8D4CC}
+
+    .pay-box{margin-top:2rem;padding:1.1rem 1.3rem;background:#FAFAF8;border:1px solid var(--line);border-radius:8px}
+    .pay-box h3{font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem}
+    .pay-box p{font-size:.83rem;line-height:1.7;color:#3A3530}
+
+    .notes{margin-top:1.5rem;font-size:.83rem;line-height:1.7;color:#5A5450}
+    .foot{margin-top:2.5rem;padding-top:1.2rem;border-top:1px solid var(--line);text-align:center;font-size:.76rem;color:var(--muted);line-height:1.7}
+
+    @media print{
+      body{background:#fff;padding:0;font-size:12px}
+      .toolbar{display:none}
+      .sheet{max-width:none;border:none;border-radius:0;padding:0;margin:0}
+      thead{display:table-header-group}
+      tr{page-break-inside:avoid}
+      .pay-box{background:#fff;border:1px solid #ccc}
+      @page{margin:14mm}
+    }
+    @media(max-width:620px){
+      body{padding:.8rem .5rem}
+      .sheet{padding:1.3rem}
+      .parties{grid-template-columns:1fr;gap:1.2rem}
+      .head{flex-direction:column}
+      .doc-title{text-align:left}
+    }
+  </style>
+</head>
+<body>
+
+<div class="toolbar">
+  {% if not is_public %}
+    <a href="{% url 'finance:invoice_detail' invoice.pk %}" class="btn btn-ghost">← Back</a>
+  {% endif %}
+  <button onclick="window.print()" class="btn btn-gold">Print / Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="head">
+    <div class="brand">
+      <img src="{% static 'logo.png' %}" alt="{{ settings.site_name }}">
+      <div>
+        <div class="brand-name">{{ settings.site_name }}</div>
+        <div class="brand-meta">
+          {% if settings.address %}{{ settings.address|linebreaksbr }}<br>{% endif %}
+          {% if settings.contact_phone %}{{ settings.contact_phone }}{% endif %}
+          {% if settings.contact_email %} · {{ settings.contact_email }}{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="doc-title">
+      <h1>INVOICE</h1>
+      <div class="doc-num">{{ invoice.display_number }}</div>
+      <div class="doc-dates">
+        Issued: {{ invoice.issue_date|date:"d M Y" }}<br>
+        {% if invoice.due_date %}Due: {{ invoice.due_date|date:"d M Y" }}{% endif %}
+      </div>
+      {% if invoice.status == 'cancelled' %}
+        <span class="status-stamp stamp-cancelled">Cancelled</span>
+      {% elif invoice.status == 'paid' %}
+        <span class="status-stamp stamp-paid">Paid</span>
+      {% elif invoice.is_overdue %}
+        <span class="status-stamp stamp-overdue">Overdue</span>
+      {% elif invoice.is_open %}
+        <span class="status-stamp stamp-due">Payment Due</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="parties">
+    <div>
+      <div class="party-label">Billed To</div>
+      <div class="party-name">{{ invoice.party.name }}</div>
+      <div class="party-meta">
+        {% if invoice.party.address %}{{ invoice.party.address|linebreaksbr }}<br>{% endif %}
+        {% if invoice.party.phone %}{{ invoice.party.phone }}<br>{% endif %}
+        {% if invoice.party.email %}{{ invoice.party.email }}{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="party-label">Payment Terms</div>
+      <div class="party-meta" style="margin-top:0">
+        {{ invoice.get_payment_terms_days_display }}
+        {% if invoice.order %}<br>Order reference: {{ invoice.order.order_number }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="num">Unit Price</th>
+        <th class="num">Qty</th>
+        {% if invoice.has_line_discounts %}<th class="num">Discount</th>{% endif %}
+        <th class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>
+            {{ item.description }}
+            {% if item.sku %}<div class="item-sku">{{ item.sku }}</div>{% endif %}
+          </td>
+          <td class="num">৳{{ item.unit_price|floatformat:2 }}</td>
+          <td class="num">{{ item.quantity }}</td>
+          {% if invoice.has_line_discounts %}
+            <td class="num">{% if item.discount %}−৳{{ item.discount|floatformat:2 }}{% else %}—{% endif %}</td>
+          {% endif %}
+          <td class="num">৳{{ item.line_total|floatformat:2 }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr class="muted-row"><td>Subtotal</td><td>৳{{ invoice.subtotal|floatformat:2 }}</td></tr>
+    {% if invoice.discount %}
+      <tr class="muted-row"><td>Discount</td><td>−৳{{ invoice.discount|floatformat:2 }}</td></tr>
+    {% endif %}
+    {% if invoice.delivery_charge %}
+      <tr class="muted-row"><td>Delivery</td><td>৳{{ invoice.delivery_charge|floatformat:2 }}</td></tr>
+    {% endif %}
+    <tr class="grand"><td>Total</td><td>৳{{ invoice.total|floatformat:2 }}</td></tr>
+    {% if invoice.amount_paid %}
+      <tr class="muted-row"><td>Received</td><td>−৳{{ invoice.amount_paid|floatformat:2 }}</td></tr>
+      <tr class="grand"><td>Balance Due</td><td>৳{{ invoice.amount_due|floatformat:2 }}</td></tr>
+    {% endif %}
+  </table>
+
+  <div class="pay-box">
+    <h3>How to Pay</h3>
+    <p>
+      bKash / Nagad: <strong>{{ settings.contact_phone|default:"—" }}</strong><br>
+      Please quote invoice <strong>{{ invoice.display_number }}</strong> as the reference
+      so your payment can be matched to this bill.
+    </p>
+  </div>
+
+  {% if invoice.notes %}
+    <div class="notes">{{ invoice.notes|linebreaksbr }}</div>
+  {% endif %}
+
+  <div class="foot">
+    Thank you for your business.<br>
+    {{ settings.site_name }}{% if settings.contact_phone %} · {{ settings.contact_phone }}{% endif %}
+  </div>
+
+</div>
+</body>
+</html>
