@@ -74,6 +74,34 @@
   </div>
 </div>
 
+{% if purchase.status != 'draft' and purchase.status != 'cancelled' %}
+  <div class="stat-row">
+    <div class="stat-box success">
+      <div class="stat-num">৳{{ purchase.settled|floatformat:2 }}</div>
+      <div class="stat-lbl">Paid To Supplier</div>
+      {% if purchase.payment %}
+        <div class="stat-sub">
+          {{ purchase.payment.account.name }} on {{ purchase.payment.date|date:"d M Y" }}
+        </div>
+      {% else %}
+        <div class="stat-sub">Nothing paid yet</div>
+      {% endif %}
+    </div>
+    <div class="stat-box {% if purchase.still_owed > 0 %}warning{% else %}success{% endif %}">
+      <div class="stat-num">৳{{ purchase.still_owed|floatformat:2 }}</div>
+      <div class="stat-lbl">Still Owed</div>
+      <div class="stat-sub">
+        {% if purchase.is_received %}Against the landed total{% else %}Against the goods value so far{% endif %}
+      </div>
+    </div>
+    {% if purchase.still_owed > 0 %}
+      <div class="stat-box info" style="display:flex;align-items:center;justify-content:center">
+        <a href="{% url 'finance:supplier_payment_create' %}" class="btn btn-gold">Pay the rest</a>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
 {% if purchase.is_import and purchase.billed_weight_kg %}
   <div class="card">
     <div class="card-head"><span class="card-title">Weight reconciliation</span></div>
@@ -179,6 +207,10 @@
       {% endif %}
     </div>
   </div>
+{% endif %}
+
+{% if purchase.status == 'draft' %}
+  {% include 'finance/partials/danger_zone.html' with title='Delete this draft' action=delete_url label='Delete draft' confirm='Delete this draft purchase for good?' explain='Nothing has been posted for this purchase, so it can be deleted outright and nothing is lost.' %}
 {% endif %}
 
 {% if purchase.status != 'cancelled' %}

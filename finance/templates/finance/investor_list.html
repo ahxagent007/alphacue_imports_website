@@ -76,7 +76,7 @@
   <div class="card-head"><span class="card-title">Profit distributions</span></div>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Period</th><th>Shared on</th><th class="num">Net profit</th><th class="num">Distributed</th><th>Split</th></tr></thead>
+      <thead><tr><th>Period</th><th>Shared on</th><th class="num">Net profit</th><th class="num">Distributed</th><th>Split</th><th></th></tr></thead>
       <tbody>
         {% for distribution in distributions %}
           <tr>
@@ -92,9 +92,22 @@
                 {{ share.investor.name }} ৳{{ share.amount|floatformat:0 }}{% if not forloop.last %}<br>{% endif %}
               {% endfor %}
             </td>
+            <td class="num">
+              {% if not distribution.is_reversed %}
+                <form method="post" action="{% url 'finance:distribution_undo' distribution.pk %}"
+                      style="display:flex;gap:.35rem;justify-content:flex-end"
+                      onsubmit="return confirm('Undo this profit share-out? Each stake goes back.');">
+                  {% csrf_token %}
+                  <input type="text" name="reason" placeholder="Reason"
+                         class="form-input" style="width:120px;font-size:.75rem;padding:.35rem .5rem">
+                  <button type="submit" class="btn btn-ghost"
+                          style="border-color:#EF4444;color:#991B1B">Undo</button>
+                </form>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="5">
+          <tr><td colspan="6">
             <div class="empty-state">
               <div class="icon">📊</div>
               <p>No profit has been shared out yet.</p>

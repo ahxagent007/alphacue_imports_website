@@ -1,0 +1,48 @@
+{% comment %}
+Shared remove/undo block.
+
+Expects:
+  title        heading for the card
+  action       form action URL
+  label        button text
+  explain      what will actually happen, in plain words
+  blocked      optional reason it cannot be done (shown instead of the button)
+  needs_reason optional — show a reason field, required by the view
+  confirm      optional confirm() text
+
+Deleting and undoing are deliberately worded differently. Something that was
+never posted really is deleted; something that moved money is undone by posting
+the opposite, and the block says so rather than pretending the record vanishes.
+{% endcomment %}
+<div class="card">
+  <div class="card-head"><span class="card-title">{{ title }}</span></div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.7;margin-bottom:.9rem">
+      {{ explain }}
+    </p>
+
+    {% if blocked %}
+      <div class="alert alert-warning" style="margin:0">{{ blocked }}</div>
+    {% else %}
+      <form method="post" action="{{ action }}"
+            {% if confirm %}onsubmit="return confirm('{{ confirm|escapejs }}');"{% endif %}>
+        {% csrf_token %}
+        <div class="form-grid">
+          {% if needs_reason %}
+            <div class="form-field">
+              <label for="reason-{{ action|slugify }}">Reason</label>
+              <input type="text" name="reason" id="reason-{{ action|slugify }}"
+                     class="form-input" required
+                     placeholder="e.g. Entered by mistake">
+              <div class="form-help">Kept on the record so the history explains itself.</div>
+            </div>
+          {% endif %}
+          <div class="form-actions">
+            <button type="submit" class="btn btn-ghost btn-lg"
+                    style="border-color:#EF4444;color:#991B1B">{{ label }}</button>
+          </div>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</div>

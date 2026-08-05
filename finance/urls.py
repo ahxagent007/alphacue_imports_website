@@ -94,6 +94,22 @@ urlpatterns = [
     path('manage/finance/loans/<int:pk>/', views.loan_detail, name='loan_detail'),
     path('manage/finance/loans/<int:pk>/pay/', views.loan_pay, name='loan_pay'),
 
+    # ── Undo / delete ─────────────────────────────────────────────────────
+    path('manage/finance/investors/<int:pk>/undo/<int:txn_id>/',
+         views.investor_movement_undo, name='investor_movement_undo'),
+    path('manage/finance/investors/<int:pk>/delete/',
+         views.investor_delete, name='investor_delete'),
+    path('manage/finance/investors/distributions/<int:pk>/undo/',
+         views.distribution_undo, name='distribution_undo'),
+    path('manage/finance/loans/<int:pk>/cancel/', views.loan_cancel, name='loan_cancel'),
+    path('manage/finance/loans/<int:pk>/payments/<int:payment_id>/undo/',
+         views.loan_payment_undo, name='loan_payment_undo'),
+    path('manage/finance/stock/movements/<int:pk>/undo/',
+         views.stock_movement_undo, name='stock_movement_undo'),
+    path('manage/finance/parties/<int:pk>/delete/', views.party_delete, name='party_delete'),
+    path('manage/finance/invoices/<int:pk>/delete/', views.invoice_delete, name='invoice_delete'),
+    path('manage/finance/purchases/<int:pk>/delete/', views.purchase_delete, name='purchase_delete'),
+
     # ── Reports ───────────────────────────────────────────────────────────
     path('manage/finance/reports/profit-loss/', views.profit_loss, name='profit_loss'),
     path('manage/finance/reports/cash-flow/', views.cash_flow, name='cash_flow'),

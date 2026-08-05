@@ -53,7 +53,7 @@
   <div class="card-head"><span class="card-title">Account movements</span></div>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Reference</th><th>Date</th><th>Description</th><th class="num">Change</th><th class="num">Stake</th></tr></thead>
+      <thead><tr><th>Reference</th><th>Date</th><th>Description</th><th class="num">Change</th><th class="num">Stake</th><th class="no-print"></th></tr></thead>
       <tbody>
         {% for row in statement.rows %}
           <tr>
@@ -68,9 +68,25 @@
               </span>
             </td>
             <td class="num money">৳{{ row.running_balance|floatformat:2 }}</td>
+            <td class="num no-print">
+              {% if not row.transaction.is_reversed and not row.transaction.reversal_of_id and row.transaction.source_type == 'investor' %}
+                <form method="post"
+                      action="{% url 'finance:investor_movement_undo' investor.pk row.transaction.pk %}"
+                      style="display:flex;gap:.35rem;justify-content:flex-end"
+                      onsubmit="return confirm('Undo this entry? The opposite will be posted and both stay in the history.');">
+                  {% csrf_token %}
+                  <input type="text" name="reason" placeholder="Reason" required
+                         class="form-input" style="width:130px;font-size:.75rem;padding:.35rem .5rem">
+                  <button type="submit" class="btn btn-ghost"
+                          style="border-color:#EF4444;color:#991B1B">Undo</button>
+                </form>
+              {% elif row.transaction.is_reversed %}
+                <span class="pill pill-bad">Undone</span>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="5">
+          <tr><td colspan="6">
             <div class="empty-state">
               <div class="icon">💼</div>
               <p>{{ investor.name }} has not put anything in yet.</p>
@@ -83,6 +99,10 @@
       </tbody>
     </table>
   </div>
+</div>
+
+<div class="no-print">
+  {% include 'finance/partials/danger_zone.html' with title='Remove this investor' action=remove_url label='Remove investor' blocked=cannot_delete confirm='Remove this investor?' explain='An investor with nothing posted can be removed outright. Once money has moved on their account, undo each entry above first — the ledger keeps what actually happened.' %}
 </div>
 
 {% if shares %}

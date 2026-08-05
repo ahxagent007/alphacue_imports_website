@@ -629,7 +629,85 @@ def issue_invoice(invoice, *, issue_date=None, created_by=None):
         'due_date', 'share_token', 'updated_at',
     ])
     invoice.number = number
+
+    consume_stock_for_invoice(invoice, created_by=created_by)
     return invoice
+
+
+def consume_stock_for_invoice(invoice, created_by=None):
+    """
+    Take the goods on an issued invoice out of stock.
+
+    Skipped for invoices raised from a website order — checkout already took
+    that stock, and taking it again would halve the figure for every online
+    sale.
+
+    Shortfalls are allowed through on purpose. Selling something the system
+    thinks it has none of drives the count negative, which is the signal that
+    the product was never received into stock. Blocking the invoice would hide
+    the problem instead of showing it.
+    """
+    from .models import StockMovement
+
+    if invoice.order_id:
+        return []
+
+    movements = []
+    for item in invoice.items.select_related('variant'):
+        if not item.variant_id or item.quantity <= 0:
+            continue
+
+        available = variant_stock(item.variant)
+        note = ''
+        if item.quantity > available:
+            note = (
+                f'Sold {item.quantity} with {available} on hand — '
+                f'this product may never have been received into stock'
+            )
+
+        movements.append(consume_stock(
+            variant=item.variant,
+            quantity=item.quantity,
+            reason=StockMovement.REASON_SALE,
+            reference=invoice.number or invoice.display_number,
+            date=invoice.issue_date,
+            note=note,
+            created_by=created_by,
+            allow_short=True,
+            # Issuing an invoice must not fail because the accounts are not
+            # set up — the same reasoning as the storefront.
+            cogs_required=False,
+        ))
+    return movements
+
+
+def return_stock_for_invoice(invoice, created_by=None):
+    """Put an invoice's goods back when it is cancelled."""
+    from .models import StockMovement
+
+    if invoice.order_id:
+        return []
+
+    reference = invoice.number or invoice.display_number
+    returned = []
+
+    for movement in StockMovement.objects.filter(
+        reference=reference, reason=StockMovement.REASON_SALE,
+    ).select_related('variant'):
+        already = sum(c.qty_returned for c in movement.consumptions.all())
+        sold = sum(c.quantity for c in movement.consumptions.all())
+        quantity = -movement.quantity
+
+        returned.append(return_stock(
+            variant=movement.variant,
+            quantity=quantity,
+            reference=reference,
+            date=today(),
+            note=f'Invoice {reference} cancelled',
+            created_by=created_by,
+            original_movement=movement if sold > already else None,
+        ))
+    return returned
 
 
 def allocate_invoice_number(invoice, year=None):
@@ -686,6 +764,9 @@ def cancel_invoice(invoice, *, reason='', created_by=None):
             created_by=created_by,
             force=True,
         )
+
+    if invoice.status != Invoice.STATUS_DRAFT:
+        return_stock_for_invoice(invoice, created_by=created_by)
 
     invoice.status = Invoice.STATUS_CANCELLED
     invoice.cancelled_at = timezone.now()
@@ -1267,6 +1348,39 @@ def _allocate_with_remainder(total, weights):
     return shares
 
 
+def settle_purchase_payment(purchase, created_by=None):
+    """
+    Pay the supplier for a purchase, if the owner said which account it came
+    from when they entered it.
+
+    Runs once — at whichever point the purchase first reaches the ledger, which
+    is confirming the order for an import (you pay before it ships) or receiving
+    it for a local buy. `purchase.payment` is the guard, so re-confirming or
+    re-saving cannot pay twice.
+    """
+    from .models import Purchase
+
+    if purchase.payment_id or not purchase.paid_from_id:
+        return None
+
+    amount = money(purchase.amount_paid)
+    if amount <= ZERO:
+        return None
+
+    payment = record_supplier_payment(
+        party=purchase.supplier,
+        date=purchase.purchase_date,
+        amount=amount,
+        paid_from=purchase.paid_from,
+        reference=purchase.purchase_no,
+        notes=f'Paid against purchase {purchase.purchase_no}',
+        created_by=created_by,
+    )
+    Purchase.objects.filter(pk=purchase.pk).update(payment=payment)
+    purchase.payment = payment
+    return payment
+
+
 @db_transaction.atomic
 def mark_purchase_ordered(purchase, *, created_by=None):
     """
@@ -1308,6 +1422,8 @@ def mark_purchase_ordered(purchase, *, created_by=None):
     purchase.status = Purchase.STATUS_ORDERED
     purchase.order_transaction = txn
     purchase.save(update_fields=['status', 'order_transaction', 'updated_at'])
+
+    settle_purchase_payment(purchase, created_by=created_by)
     return purchase
 
 
@@ -1423,6 +1539,10 @@ def receive_purchase(purchase, *, received_date=None, created_by=None):
     purchase.save(update_fields=[
         'status', 'received_date', 'receipt_transaction', 'updated_at',
     ])
+
+    # Covers a purchase received without being confirmed first — a local buy
+    # that was paid for and carried home the same day.
+    settle_purchase_payment(purchase, created_by=created_by)
     return purchase
 
 
@@ -1954,6 +2074,40 @@ def stock_valuation():
     }
 
 
+def oversold_variants():
+    """
+    Products whose movement history has gone negative — sold more than was
+    ever received.
+
+    Almost always means the product was never entered into stock rather than
+    that anything was stolen, which is why it is worth surfacing loudly: the
+    fix is to record the purchase or the opening stock.
+    """
+    from store.models import ProductVariant
+    from .models import StockMovement
+
+    negative = (
+        StockMovement.objects
+        .values('variant')
+        .annotate(total=Sum('quantity'))
+        .filter(total__lt=0)
+    )
+    shortfalls = {row['variant']: row['total'] for row in negative}
+    if not shortfalls:
+        return []
+
+    variants = ProductVariant.objects.filter(
+        pk__in=shortfalls,
+    ).select_related('product')
+
+    rows = [
+        {'variant': variant, 'quantity': shortfalls[variant.pk]}
+        for variant in variants
+    ]
+    rows.sort(key=lambda row: row['quantity'])
+    return rows
+
+
 def low_stock(threshold=None):
     """Products at or below the reorder level, worst first."""
     from django.conf import settings
@@ -2160,6 +2314,288 @@ def distribute_profit(*, period_start, period_end, distribution_date=None,
     ProfitDistribution.objects.filter(pk=distribution.pk).update(transaction=txn)
     distribution.transaction = txn
     return distribution
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  UNDOING THINGS
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  Two different situations, deliberately kept apart:
+#
+#  * Nothing was posted — a draft, or a record with no history. Really deleted,
+#    because there is nothing to explain.
+#  * Something was posted — the money moved. Undone by posting the opposite,
+#    so the balances go back and the history still says what happened.
+#
+#  The second is what keeps the trial balance meaningful. A ledger you can
+#  quietly delete rows from is a ledger nobody can rely on, and in an audit or
+#  a dispute the deleted row is exactly the one you needed.
+
+@db_transaction.atomic
+def reverse_investor_movement(txn, *, reason='', created_by=None):
+    """Undo a capital contribution or a drawing."""
+    if txn.source_type != Transaction.SOURCE_INVESTOR:
+        raise LedgerError(
+            f"{txn.reference_no} is not a capital movement."
+        )
+    return reverse_transaction(
+        txn, reason=reason or 'Capital movement undone',
+        created_by=created_by, force=True,
+    )
+
+
+@db_transaction.atomic
+def reverse_distribution(distribution, *, reason='', created_by=None):
+    """
+    Undo a profit share-out. The shares stay on record but stop counting,
+    because the entry behind them is reversed.
+    """
+    if not distribution.transaction_id:
+        raise LedgerError('That distribution was never posted.')
+    if distribution.transaction.is_reversed:
+        raise LedgerError('That distribution has already been undone.')
+
+    return reverse_transaction(
+        distribution.transaction,
+        reason=reason or 'Profit distribution undone',
+        created_by=created_by, force=True,
+    )
+
+
+@db_transaction.atomic
+def cancel_loan(loan, *, reason='', created_by=None):
+    """
+    Undo a loan entered by mistake.
+
+    Refused once repayments exist — those moved real money, and unpicking them
+    silently would leave the cash position wrong. Reverse the repayments first.
+    """
+    from .models import Loan
+
+    if loan.status == Loan.STATUS_CANCELLED:
+        raise LedgerError(f"{loan.loan_no} is already cancelled.")
+
+    if loan.payments.exists():
+        live = [p for p in loan.payments.all()
+                if not (p.transaction_id and p.transaction.is_reversed)]
+        if live:
+            raise LedgerError(
+                f"{loan.loan_no} has {len(live)} repayment(s) recorded. Undo "
+                f"those first — they moved real money."
+            )
+
+    if loan.transaction_id and not loan.transaction.is_reversed:
+        reverse_transaction(
+            loan.transaction,
+            reason=reason or f'Loan {loan.loan_no} cancelled',
+            created_by=created_by, force=True,
+        )
+
+    loan.installments.all().delete()
+    loan.status = Loan.STATUS_CANCELLED
+    loan.save(update_fields=['status', 'updated_at'])
+    return loan
+
+
+@db_transaction.atomic
+def reverse_loan_payment(payment, *, reason='', created_by=None):
+    """Undo a repayment, putting the principal and interest back."""
+    from .models import LoanInstallment
+
+    if not payment.transaction_id:
+        raise LedgerError('That repayment was never posted.')
+    if payment.transaction.is_reversed:
+        raise LedgerError('That repayment has already been undone.')
+
+    reverse_transaction(
+        payment.transaction,
+        reason=reason or f'Repayment on {payment.loan.loan_no} undone',
+        created_by=created_by, force=True,
+    )
+
+    installment = payment.installment
+    if installment is not None:
+        installment.principal_paid = max(
+            ZERO, installment.principal_paid - payment.principal_amount)
+        installment.interest_paid = max(
+            ZERO, installment.interest_paid - payment.interest_amount)
+
+        if installment.total_paid <= ZERO:
+            installment.status = LoanInstallment.STATUS_DUE
+            installment.paid_date = None
+        elif installment.total_paid < installment.total_due:
+            installment.status = LoanInstallment.STATUS_PARTIAL
+        installment.save(update_fields=[
+            'principal_paid', 'interest_paid', 'status', 'paid_date',
+        ])
+
+    refresh_loan_status(payment.loan)
+    return payment
+
+
+#: Movements the owner entered by hand, and can therefore take back here.
+#: Sales come from an invoice or an order — undo those from the document, so
+#: the paperwork and the stock stay in step.
+UNDOABLE_STOCK_REASONS = {'adjustment', 'damage', 'opening'}
+
+
+@db_transaction.atomic
+def reverse_stock_movement(movement, *, reason='', created_by=None):
+    """Take back a stock adjustment, write-off or opening-stock entry."""
+    from .models import StockBatch, StockMovement
+
+    if movement.reason not in UNDOABLE_STOCK_REASONS:
+        raise LedgerError(
+            f"{movement.get_reason_display()} came from a sale or a purchase. "
+            f"Undo it from the invoice, order or purchase that created it."
+        )
+
+    if StockMovement.objects.filter(
+        variant=movement.variant,
+        reference=f'undo-{movement.pk}',
+    ).exists():
+        raise LedgerError('That movement has already been taken back.')
+
+    quantity = movement.quantity
+
+    if quantity > 0:
+        # It brought stock in. Those exact units must still be sitting in the
+        # batch it created, otherwise some of them have already been sold.
+        batch = movement.batch
+        if batch is None:
+            raise LedgerError('That movement has no batch to take back.')
+        if batch.qty_remaining < quantity:
+            raise LedgerError(
+                f"{quantity - batch.qty_remaining} of those units have already "
+                f"been sold, so the entry cannot be taken back. Record a stock "
+                f"adjustment instead."
+            )
+        batch.qty_remaining -= quantity
+        batch.save(update_fields=['qty_remaining'])
+        restored_cost = money(batch.unit_cost * quantity)
+        undo_quantity = -quantity
+    else:
+        # It took stock out. Put it back where it came from.
+        restored_cost = ZERO
+        for consumption in movement.consumptions.select_related('batch'):
+            give_back = consumption.qty_returnable
+            if give_back <= 0:
+                continue
+            consumption.batch.qty_remaining += give_back
+            consumption.batch.save(update_fields=['qty_remaining'])
+            consumption.qty_returned += give_back
+            consumption.save(update_fields=['qty_returned'])
+            restored_cost += consumption.unit_cost * give_back
+        restored_cost = money(restored_cost)
+        undo_quantity = -quantity
+
+    undo = StockMovement.objects.create(
+        variant=movement.variant,
+        date=today(),
+        quantity=undo_quantity,
+        reason=StockMovement.REASON_ADJUST,
+        reference=f'undo-{movement.pk}',
+        note=(reason or f'Took back {movement.get_reason_display().lower()}')[:255],
+        created_by=created_by,
+    )
+
+    if movement.transaction_id and not movement.transaction.is_reversed:
+        reverse_transaction(
+            movement.transaction,
+            reason=reason or 'Stock entry taken back',
+            created_by=created_by, force=True,
+        )
+
+    sync_variant_stock(movement.variant)
+    return undo
+
+
+# ── Deleting things that never touched the ledger ─────────────────────────────
+
+def why_investor_cannot_be_deleted(investor):
+    """Reason this investor must be undone rather than deleted, or None."""
+    if investor.equity_account_id and investor.equity_account.lines.exists():
+        return (
+            'Money has moved on this investor\'s account. Undo each capital '
+            'movement first, then the investor can be removed.'
+        )
+    if investor.profit_shares.exists():
+        return 'This investor has been included in a profit distribution.'
+    return None
+
+
+@db_transaction.atomic
+def delete_investor(investor):
+    """Remove an investor who never had any money move."""
+    blocked = why_investor_cannot_be_deleted(investor)
+    if blocked:
+        raise LedgerError(blocked)
+
+    account = investor.equity_account
+    investor.delete()
+    if account is not None:
+        account.delete()
+    return True
+
+
+def why_party_cannot_be_deleted(party):
+    """Reason this client or supplier must be kept, or None."""
+    from .models import Invoice
+
+    if party.invoices.exclude(status=Invoice.STATUS_DRAFT).exists():
+        return 'This client has invoices that were issued.'
+    if party.payments.exists():
+        return 'Payments have been recorded against this client.'
+    if party.purchases.exists():
+        return 'Purchases have been recorded against this supplier.'
+    if party.receivable_account_id and party.receivable_account.lines.exists():
+        return 'Money has moved on this client\'s account.'
+    return None
+
+
+@db_transaction.atomic
+def delete_party(party):
+    """Remove a client or supplier who never traded."""
+    blocked = why_party_cannot_be_deleted(party)
+    if blocked:
+        raise LedgerError(blocked)
+
+    account = party.receivable_account
+    party.invoices.all().delete()      # drafts only, by the check above
+    party.delete()
+    if account is not None:
+        account.delete()
+    return True
+
+
+@db_transaction.atomic
+def delete_draft_invoice(invoice):
+    """Throw away a draft. Nothing was posted, so nothing is lost."""
+    from .models import Invoice
+
+    if invoice.status != Invoice.STATUS_DRAFT:
+        raise LedgerError(
+            f"{invoice.display_number} has been issued. Cancel it instead — "
+            f"that reverses the entry and keeps the record."
+        )
+    invoice.items.all().delete()
+    invoice.delete()
+    return True
+
+
+@db_transaction.atomic
+def delete_draft_purchase(purchase):
+    """Throw away a purchase that was never confirmed."""
+    from .models import Purchase
+
+    if purchase.status != Purchase.STATUS_DRAFT:
+        raise LedgerError(
+            f"{purchase.purchase_no} has been confirmed or received. Cancel it "
+            f"instead — that reverses the entries and keeps the record."
+        )
+    purchase.items.all().delete()
+    purchase.delete()
+    return True
 
 
 def investor_statement(investor):

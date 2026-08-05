@@ -32,6 +32,43 @@
   </div>
 </div>
 
+{% if oversold %}
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title" style="color:#991B1B">Sold but never received</span>
+      <span class="muted" style="font-size:.78rem">Record the purchase or opening stock to clear these</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Product</th><th class="num">Short by</th><th></th></tr></thead>
+        <tbody>
+          {% for row in oversold %}
+            <tr>
+              <td>
+                <a href="{% url 'finance:stock_detail' row.variant.pk %}">
+                  <strong>{{ row.variant.product.name }}</strong> — {{ row.variant.name }}
+                </a>
+              </td>
+              <td class="num"><span class="money neg">{{ row.quantity }}</span></td>
+              <td class="num">
+                <a href="{% url 'finance:stock_opening' %}" class="btn btn-ghost">Enter opening stock</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.83rem;line-height:1.7">
+        These went negative because something was invoiced or sold that the system
+        had no stock for. The storefront still shows them as out of stock, so no
+        customer ever sees a negative number — but the sale is on record, and the
+        cost of those units is missing from your profit until the stock is entered.
+      </p>
+    </div>
+  </div>
+{% endif %}
+
 {% if low_stock %}
   <div class="card">
     <div class="card-head"><span class="card-title">Running low</span></div>
