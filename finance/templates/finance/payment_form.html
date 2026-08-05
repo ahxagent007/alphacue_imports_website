@@ -1,0 +1,96 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Record Payment{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:dues_dashboard' %}">Dues</a> / Record payment</div>
+
+<div class="page-head">
+  <div>
+    <h1>Record Payment</h1>
+    <p>Money received from a client. By default it settles their oldest invoices first.</p>
+  </div>
+</div>
+
+{% include 'finance/partials/money_strip.html' %}
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+  <div class="card">
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.party %}
+          {% include 'finance/partials/field.html' with field=form.date %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.amount %}
+          {% include 'finance/partials/field.html' with field=form.account %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.reference %}
+        {% include 'finance/partials/field.html' with field=form.notes %}
+      </div>
+    </div>
+  </div>
+
+  {% if preview_party %}
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Open invoices — {{ preview_party.name }}</span>
+        <span class="muted" style="font-size:.78rem">Owes ৳{{ preview_party.outstanding|floatformat:2 }}</span>
+      </div>
+      <div class="card-body">
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin-bottom:1rem">
+          <input type="checkbox" name="allocation_mode" value="manual"
+                 {% if request.POST.allocation_mode %}checked{% endif %}>
+          Choose which invoices this covers, instead of oldest first
+        </label>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Invoice</th><th>Issued</th><th>Due</th><th class="num">Outstanding</th><th class="num">Apply</th></tr>
+            </thead>
+            <tbody>
+              {% for invoice in open_invoices %}
+                <tr>
+                  <td><a href="{% url 'finance:invoice_detail' invoice.pk %}"><strong>{{ invoice.display_number }}</strong></a></td>
+                  <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+                  <td>
+                    {{ invoice.due_date|date:"d M Y"|default:"—" }}
+                    {% if invoice.is_overdue %}<span class="pill pill-bad" style="margin-left:.3rem">{{ invoice.days_overdue }}d</span>{% endif %}
+                  </td>
+                  <td class="num money">৳{{ invoice.amount_due|floatformat:2 }}</td>
+                  <td class="num">
+                    <input type="number" step="0.01" min="0" name="alloc_{{ invoice.pk }}"
+                           class="form-input" style="width:120px;text-align:right"
+                           placeholder="0.00">
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5">
+                  <div class="empty-state">
+                    <div class="icon">✅</div>
+                    <p>{{ preview_party.name }} has no open invoices. Anything received now will be kept as an advance.</p>
+                  </div>
+                </td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-warning">
+      Pick a client and save to see their open invoices. Payments beyond what is
+      owed are kept as an advance on their account.
+    </div>
+  {% endif %}
+
+  <div class="form-actions" style="margin-bottom:2rem">
+    <button type="submit" class="btn btn-gold btn-lg">Record payment</button>
+    <a href="{% url 'finance:dues_dashboard' %}" class="btn btn-ghost btn-lg">Cancel</a>
+  </div>
+</form>
+{% endblock %}

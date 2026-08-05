@@ -1,0 +1,98 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Purchases{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Purchases</h1>
+    <p>Import shipments and local buys. Landed cost is worked out when the goods arrive.</p>
+  </div>
+  <a href="{% url 'finance:purchase_create' %}" class="btn btn-gold btn-lg">+ New purchase</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ stock_value|floatformat:2 }}</div>
+    <div class="stat-lbl">Stock Value</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ in_transit_value|floatformat:2 }}</div>
+    <div class="stat-lbl">Goods in Transit</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">{{ stats.in_flight }}</div>
+    <div class="stat-lbl">On the Way</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">{{ stats.received }}</div>
+    <div class="stat-lbl">Received</div>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="status">Status</label>
+    <select name="status" id="status" class="form-input">
+      <option value="">All</option>
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if status %}<a href="{% url 'finance:purchase_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} purchase{{ page_obj.paginator.count|pluralize }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Number</th><th>Supplier</th><th>Type</th><th>Date</th><th>Status</th><th class="num">Units</th><th class="num">Landed cost</th></tr>
+      </thead>
+      <tbody>
+        {% for purchase in page_obj %}
+          <tr>
+            <td><a href="{% url 'finance:purchase_detail' purchase.pk %}"><strong>{{ purchase.purchase_no }}</strong></a></td>
+            <td>{{ purchase.supplier.name }}</td>
+            <td class="muted">{{ purchase.get_purchase_type_display }}</td>
+            <td>{{ purchase.purchase_date|date:"d M Y" }}</td>
+            <td>
+              {% if purchase.status == 'received' %}<span class="pill pill-ok">Received</span>
+              {% elif purchase.status == 'cancelled' %}<span class="pill pill-muted">Cancelled</span>
+              {% elif purchase.status == 'draft' %}<span class="pill pill-muted">Draft</span>
+              {% else %}<span class="pill pill-warn">{{ purchase.get_status_display }}</span>{% endif %}
+            </td>
+            <td class="num">{{ purchase.total_quantity }}</td>
+            <td class="num money">
+              {% if purchase.has_weights or not purchase.is_import %}
+                ৳{{ purchase.landed_total_bdt|floatformat:2 }}
+              {% else %}
+                <span class="muted" title="Weight not entered yet">provisional ৳{{ purchase.goods_total_bdt|floatformat:2 }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">📦</div>
+              <p>No purchases yet.</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:purchase_create' %}" class="btn btn-gold">Record the first shipment</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}<a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}">← Previous</a>{% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}">Next →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

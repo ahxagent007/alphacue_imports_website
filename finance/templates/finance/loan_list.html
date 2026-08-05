@@ -1,0 +1,114 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Loans{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Loans</h1>
+    <p>Money you have borrowed and money you have lent, with their repayment schedules.</p>
+  </div>
+  <a href="{% url 'finance:loan_create' %}" class="btn btn-gold btn-lg">+ New loan</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box danger">
+    <div class="stat-num">৳{{ summary.owed|floatformat:2 }}</div>
+    <div class="stat-lbl">You Owe</div>
+    <div class="stat-sub">{{ summary.taken_count }} active loan(s)</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ summary.owed_to_us|floatformat:2 }}</div>
+    <div class="stat-lbl">Owed To You</div>
+    <div class="stat-sub">{{ summary.given_count }} active loan(s)</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ summary.overdue_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Overdue Installments</div>
+    <div class="stat-sub">{{ summary.overdue|length }} missed</div>
+  </div>
+</div>
+
+{% if summary.overdue %}
+  <div class="alert alert-danger">
+    <strong>{{ summary.overdue|length }} installment{{ summary.overdue|length|pluralize }} past due.</strong>
+    Totalling ৳{{ summary.overdue_total|floatformat:2 }}.
+  </div>
+{% endif %}
+
+{% if summary.upcoming %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Due in the next 30 days</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Loan</th><th>Counterparty</th><th>Installment</th><th>Due</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          {% for installment in summary.upcoming %}
+            <tr>
+              <td><a href="{% url 'finance:loan_detail' installment.loan.pk %}"><strong>{{ installment.loan.loan_no }}</strong></a></td>
+              <td>{{ installment.loan.counterparty_name }}</td>
+              <td>#{{ installment.number }}</td>
+              <td>{{ installment.due_date|date:"d M Y" }}</td>
+              <td class="num money">৳{{ installment.outstanding|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="direction">Direction</label>
+    <select name="direction" id="direction" class="form-input">
+      <option value="">All</option>
+      <option value="taken" {% if direction == 'taken' %}selected{% endif %}>Taken</option>
+      <option value="given" {% if direction == 'given' %}selected{% endif %}>Given</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if direction %}<a href="{% url 'finance:loan_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">All loans</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Number</th><th>Counterparty</th><th>Direction</th><th>Terms</th><th class="num">Principal</th><th class="num">Outstanding</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for loan in loans %}
+          <tr>
+            <td><a href="{% url 'finance:loan_detail' loan.pk %}"><strong>{{ loan.loan_no }}</strong></a></td>
+            <td>{{ loan.counterparty_name }}</td>
+            <td class="muted">{% if loan.is_taken %}Borrowed{% else %}Lent{% endif %}</td>
+            <td class="muted" style="font-size:.78rem">
+              {{ loan.interest_rate }}% · {{ loan.get_method_display|truncatewords:2 }}<br>
+              {{ loan.tenure_months }} months from {{ loan.start_date|date:"M Y" }}
+            </td>
+            <td class="num money">৳{{ loan.principal|floatformat:2 }}</td>
+            <td class="num">
+              <span class="money {% if loan.outstanding > 0 %}neg{% else %}zero{% endif %}">৳{{ loan.outstanding|floatformat:2 }}</span>
+            </td>
+            <td>
+              {% if loan.status == 'closed' %}<span class="pill pill-ok">Closed</span>
+              {% elif loan.status == 'cancelled' %}<span class="pill pill-muted">Cancelled</span>
+              {% elif loan.overdue_installments %}<span class="pill pill-bad">Overdue</span>
+              {% else %}<span class="pill pill-warn">Active</span>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">🏦</div>
+              <p>No loans recorded yet.</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:loan_create' %}" class="btn btn-gold">Record one</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

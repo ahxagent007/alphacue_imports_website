@@ -1,0 +1,102 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Payments{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Payments</h1>
+    <p>Money received from clients and paid out to suppliers.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:supplier_payment_create' %}" class="btn btn-ghost btn-lg">Pay supplier</a>
+    <a href="{% url 'finance:payment_create' %}" class="btn btn-gold btn-lg">+ Record payment</a>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="direction">Direction</label>
+    <select name="direction" id="direction" class="form-input">
+      <option value="">All</option>
+      <option value="in" {% if direction == 'in' %}selected{% endif %}>Received</option>
+      <option value="out" {% if direction == 'out' %}selected{% endif %}>Paid out</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if direction %}<a href="{% url 'finance:payment_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} payment{{ page_obj.paginator.count|pluralize }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Date</th><th>Party</th><th>Account</th><th>Applied to</th><th class="num">Amount</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for payment in page_obj %}
+          <tr>
+            <td class="code-ref">
+              {{ payment.reference_no }}
+              {% if payment.reference %}<div class="muted" style="font-size:.72rem">{{ payment.reference }}</div>{% endif %}
+            </td>
+            <td>{{ payment.date|date:"d M Y" }}</td>
+            <td><a href="{% url 'finance:party_detail' payment.party.pk %}">{{ payment.party.name }}</a></td>
+            <td class="muted">{{ payment.account.name }}</td>
+            <td class="muted" style="font-size:.78rem">
+              {% for allocation in payment.allocations.all %}
+                <a href="{% url 'finance:invoice_detail' allocation.invoice.pk %}">{{ allocation.invoice.display_number }}</a>
+                (৳{{ allocation.amount|floatformat:0 }}){% if not forloop.last %}<br>{% endif %}
+              {% empty %}
+                {% if payment.direction == 'in' %}Advance — not applied{% else %}—{% endif %}
+              {% endfor %}
+              {% if payment.unallocated > 0 and payment.allocations.all %}
+                <br><span class="pill pill-warn" style="margin-top:.2rem">৳{{ payment.unallocated|floatformat:0 }} advance</span>
+              {% endif %}
+            </td>
+            <td class="num">
+              <span class="money {% if payment.direction == 'in' %}pos{% else %}neg{% endif %}">
+                {% if payment.direction == 'in' %}+{% else %}−{% endif %}৳{{ payment.amount|floatformat:2 }}
+              </span>
+              {% if payment.is_reversed %}<div><span class="pill pill-bad" style="margin-top:.25rem">Reversed</span></div>{% endif %}
+            </td>
+            <td class="num">
+              {% if not payment.is_reversed %}
+                <form method="post" action="{% url 'finance:payment_reverse' payment.pk %}"
+                      style="display:flex;gap:.35rem;align-items:center;justify-content:flex-end">
+                  {% csrf_token %}
+                  <input type="text" name="reason" placeholder="Reason" required
+                         class="form-input" style="width:130px;font-size:.75rem;padding:.35rem .5rem">
+                  <button type="submit" class="btn btn-ghost" style="border-color:#EF4444;color:#991B1B">Reverse</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">💳</div>
+              <p>No payments recorded yet.</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:payment_create' %}" class="btn btn-gold">Record the first one</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if direction %}&direction={{ direction }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if direction %}&direction={{ direction }}{% endif %}">Next →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

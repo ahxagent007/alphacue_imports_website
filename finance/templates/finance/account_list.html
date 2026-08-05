@@ -1,0 +1,54 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Accounts{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Accounts</h1>
+    <p>{{ total_count }} account{{ total_count|pluralize }}. Every balance is calculated from the ledger, never stored.</p>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    {% if show_inactive %}
+      <a href="{% url 'finance:account_list' %}" class="btn btn-ghost btn-lg">Hide inactive</a>
+    {% else %}
+      <a href="?inactive=1" class="btn btn-ghost btn-lg">Show inactive</a>
+    {% endif %}
+    <a href="{% url 'finance:account_create' %}" class="btn btn-gold btn-lg">+ New account</a>
+  </div>
+</div>
+
+{% for type_label, accounts in grouped.items %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">{{ type_label }}</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Code</th><th>Account</th><th>Description</th><th class="num">Balance</th></tr>
+        </thead>
+        <tbody>
+          {% for account in accounts %}
+            <tr>
+              <td class="code-ref">{{ account.code }}</td>
+              <td>
+                <a href="{% url 'finance:account_detail' account.pk %}"><strong>{{ account.name }}</strong></a>
+                {% if not account.is_active %}<span class="pill pill-muted" style="margin-left:.4rem">Inactive</span>{% endif %}
+              </td>
+              <td class="muted">{{ account.description|default:"—" }}</td>
+              <td class="num">
+                <span class="money {% if account.natural_total > 0 %}pos{% elif account.natural_total < 0 %}neg{% else %}zero{% endif %}">
+                  ৳{{ account.natural_total|floatformat:2 }}
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% empty %}
+  <div class="card"><div class="empty-state">
+    <div class="icon">🗂️</div>
+    <p>No accounts yet. Run <code>python manage.py seed_chart_of_accounts</code> to create the defaults.</p>
+  </div></div>
+{% endfor %}
+{% endblock %}

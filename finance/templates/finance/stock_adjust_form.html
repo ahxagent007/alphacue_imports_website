@@ -1,0 +1,51 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Adjust Stock{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:stock_list' %}">Stock</a> / Adjust</div>
+
+<div class="page-head">
+  <div>
+    <h1>Adjust Stock</h1>
+    <p>Correct a figure by hand — a stocktake difference, breakage, or units that never arrived.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="form-grid">
+        {% include 'finance/partials/field.html' with field=form.variant %}
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.direction %}
+          {% include 'finance/partials/field.html' with field=form.quantity %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.unit_cost %}
+          {% include 'finance/partials/field.html' with field=form.date %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.note %}
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Record adjustment</button>
+          <a href="{% url 'finance:stock_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.7">
+      <strong>Removing</strong> stock consumes the oldest batches first, at what those
+      units actually cost, and posts the loss to Stock Write-off &amp; Damage.<br>
+      <strong>Adding</strong> stock creates a new batch. Every adjustment stays in the
+      movement history with your note attached, so the change can always be explained.
+    </p>
+  </div>
+</div>
+{% endblock %}

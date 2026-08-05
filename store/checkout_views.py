@@ -105,6 +105,42 @@ def checkout(request):
     return render(request, 'store/checkout.html', ctx)
 
 
+def _consume_stock_for_order(order, variant, quantity):
+    """
+    Take the sold units out of stock through the finance ledger.
+
+    Replaces the old `stock = max(0, stock - quantity)`, which silently clamped
+    at zero and left an oversell with no trace. Now every sale becomes a dated
+    StockMovement showing which batches it drew from, and the cost of those
+    units is posted to Cost of Goods Sold.
+
+    An oversell no longer disappears: the cart caps quantity at the stock it saw,
+    but two people can still race for the last unit, so a shortfall is recorded
+    with a note rather than failing the customer's checkout.
+    """
+    from finance.services import consume_stock, variant_stock
+
+    on_hand = variant_stock(variant)
+    note = ''
+    if quantity > on_hand:
+        note = f'Oversold — only {on_hand} was in stock'
+
+    consume_stock(
+        variant=variant,
+        quantity=quantity,
+        reason='sale',
+        reference=order.order_number,
+        date=order.created_at.date() if order.created_at else None,
+        note=note,
+        created_by=order.user,
+        allow_short=True,
+        # A missing or misconfigured chart of accounts must never stop a
+        # customer completing an order. The stock movement is still recorded,
+        # with the unposted cost written into its note so it can be found.
+        cogs_required=False,
+    )
+
+
 @transaction.atomic
 def _place_order(request, form, cart, settings_obj):
     order = form.save(commit=False)
@@ -147,8 +183,7 @@ def _place_order(request, form, cart, settings_obj):
         )
 
         if variant.track_stock:
-            variant.stock = max(0, variant.stock - item['quantity'])
-            variant.save(update_fields=['stock'])
+            _consume_stock_for_order(order, variant, item['quantity'])
 
     # ── Store order in session BEFORE clearing anything ────────────────────
     placed_orders = request.session.get('placed_orders', [])

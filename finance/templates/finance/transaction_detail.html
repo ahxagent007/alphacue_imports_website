@@ -1,0 +1,129 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ txn.reference_no }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:transaction_list' %}">Transactions</a> / {{ txn.reference_no }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ txn.description }}</h1>
+    <p>
+      {{ txn.reference_no }} · {{ txn.date|date:"d M Y" }}
+      {% if txn.source_type %} · source: {{ txn.source_type }}{% if txn.source_id %} #{{ txn.source_id }}{% endif %}{% endif %}
+      {% if txn.created_by %} · posted by {{ txn.created_by }}{% endif %}
+    </p>
+  </div>
+</div>
+
+{% if txn.is_reversed %}
+  <div class="alert alert-warning">
+    This transaction has been reversed. Its effect on all balances has been cancelled out.
+  </div>
+{% endif %}
+{% if txn.reversal_of_id %}
+  <div class="alert alert-warning">
+    This is a reversal of
+    <a href="{% url 'finance:transaction_detail' txn.reversal_of_id %}"><strong>TXN-{{ txn.reversal_of_id|stringformat:"06d" }}</strong></a>.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Lines</span>
+    <span class="muted" style="font-size:.78rem">Must sum to exactly zero</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Account</th><th>Type</th><th>Memo</th><th class="num">Amount</th></tr>
+      </thead>
+      <tbody>
+        {% for line in lines %}
+          <tr>
+            <td>
+              <span class="code-ref">{{ line.account.code }}</span>
+              <a href="{% url 'finance:account_detail' line.account.pk %}"><strong>{{ line.account.name }}</strong></a>
+            </td>
+            <td class="muted">{{ line.account.get_type_display }}</td>
+            <td class="muted">{{ line.memo|default:"—" }}</td>
+            <td class="num">
+              <span class="money {% if line.amount > 0 %}pos{% else %}neg{% endif %}">
+                {% if line.amount > 0 %}+{% endif %}৳{{ line.amount|floatformat:2 }}
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:#FAFAF8">
+          <td colspan="3" style="text-align:right;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#9A9188">Balance check</td>
+          <td class="num">
+            {% if txn.is_balanced %}
+              <span class="pill pill-ok">৳0.00 ✓</span>
+            {% else %}
+              <span class="pill pill-bad">Out of balance</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% if not txn.is_reversed and not txn.reversal_of_id %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Made a mistake?</span></div>
+    <div class="card-body">
+      {% if is_managed %}
+        <p class="muted" style="font-size:.85rem;line-height:1.7">
+          This entry belongs to a <strong>{{ txn.source_type }}</strong>.
+          Undoing it here would leave that record saying something the books no
+          longer agree with — an invoice still reading "Sent" while the client
+          owes nothing.
+        </p>
+        <p style="font-size:.85rem;line-height:1.7;margin-top:.6rem">
+          {{ managed_advice }}
+          {% if source_url %}
+            <a href="{{ source_url }}"><strong>Open it →</strong></a>
+          {% endif %}
+        </p>
+      {% else %}
+        <p class="muted" style="font-size:.85rem;line-height:1.6;margin-bottom:.9rem">
+          Posted entries are never edited or deleted. Reversing posts a mirror image
+          that cancels this one out — both stay visible, so the history explains itself.
+        </p>
+        <form method="post" action="{% url 'finance:transaction_reverse' txn.pk %}">
+          {% csrf_token %}
+          <div class="form-grid">
+            {% include 'finance/partials/field.html' with field=reverse_form.reason %}
+            <div class="form-actions">
+              <button type="submit" class="btn btn-ghost btn-lg"
+                      style="border-color:#EF4444;color:#991B1B">Reverse this entry</button>
+            </div>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{% if reversals %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Reversed by</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Reference</th><th>Date</th><th>Description</th></tr></thead>
+        <tbody>
+          {% for rev in reversals %}
+            <tr>
+              <td class="code-ref"><a href="{% url 'finance:transaction_detail' rev.pk %}">{{ rev.reference_no }}</a></td>
+              <td>{{ rev.date|date:"d M Y" }}</td>
+              <td>{{ rev.description }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Stock{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Stock</h1>
+    <p>What is on hand and what it is worth, valued at the cost you actually paid.</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'finance:stock_movements' %}" class="btn btn-ghost btn-lg">Movements</a>
+    <a href="{% url 'finance:stock_opening' %}" class="btn btn-ghost btn-lg">Opening stock</a>
+    <a href="{% url 'finance:stock_adjust' %}" class="btn btn-gold btn-lg">Adjust stock</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ valuation.total_value|floatformat:2 }}</div>
+    <div class="stat-lbl">Stock Value</div>
+    <div class="stat-sub">{{ valuation.total_units }} unit(s) on hand</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ valuation.ledger_value|floatformat:2 }}</div>
+    <div class="stat-lbl">Ledger Says</div>
+    <div class="stat-sub">Should match the batch value</div>
+  </div>
+  <div class="stat-box {% if low_stock %}danger{% else %}success{% endif %}">
+    <div class="stat-num">{{ low_stock|length }}</div>
+    <div class="stat-lbl">Running Low</div>
+    <div class="stat-sub">5 or fewer left</div>
+  </div>
+</div>
+
+{% if low_stock %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Running low</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Product</th><th>SKU</th><th class="num">Left</th><th class="num">Sells at</th></tr></thead>
+        <tbody>
+          {% for variant in low_stock %}
+            <tr>
+              <td><a href="{% url 'finance:stock_detail' variant.pk %}"><strong>{{ variant.product.name }}</strong> — {{ variant.name }}</a></td>
+              <td class="code-ref">{{ variant.sku }}</td>
+              <td class="num"><span class="money {% if variant.stock == 0 %}neg{% endif %}">{{ variant.stock }}</span></td>
+              <td class="num">৳{{ variant.price|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="q">Search</label>
+    <input type="text" name="q" id="q" value="{{ search }}" class="form-input" placeholder="Product name">
+  </div>
+  <button type="submit" class="btn btn-gold">Search</button>
+  {% if search %}<a href="{% url 'finance:stock_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">On hand</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Product</th><th class="num">Quantity</th><th class="num">Avg unit cost</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><a href="{% url 'finance:stock_detail' row.variant.pk %}"><strong>{{ row.variant }}</strong></a></td>
+            <td class="num">{{ row.quantity }}</td>
+            <td class="num money">৳{{ row.unit_cost|floatformat:2 }}</td>
+            <td class="num money">৳{{ row.value|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">
+            <div class="empty-state">
+              <div class="icon">🏷️</div>
+              <p>{% if search %}Nothing matched.{% else %}No stock on hand yet.{% endif %}</p>
+              {% if not search %}
+                <p style="margin-top:.6rem">
+                  Receive a <a href="{% url 'finance:purchase_list' %}"><strong>purchase</strong></a>,
+                  or enter <a href="{% url 'finance:stock_opening' %}"><strong>opening stock</strong></a>
+                  for what you already have.
+                </p>
+              {% endif %}
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

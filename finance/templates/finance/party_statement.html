@@ -1,0 +1,109 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Statement — {{ party.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  @media print{
+    .admin-header,.sidebar,.filter-bar,.no-print{display:none !important}
+    .admin-main{padding:0}
+    body{background:#fff}
+    .card{border:none;margin-bottom:.8rem}
+    @page{margin:14mm}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crumb no-print">
+  <a href="{% url 'finance:party_list' %}">Clients</a> /
+  <a href="{% url 'finance:party_detail' party.pk %}">{{ party.name }}</a> / Statement
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>Statement of Account</h1>
+    <p>
+      <strong>{{ party.name }}</strong>
+      {% if party.phone %} · {{ party.phone }}{% endif %}
+      {% if statement.since or statement.as_of %}
+        <br>{{ statement.since|date:"d M Y"|default:"Beginning" }} — {{ statement.as_of|date:"d M Y"|default:"today" }}
+      {% endif %}
+    </p>
+  </div>
+  <div class="no-print" style="display:flex;gap:.5rem">
+    <button onclick="window.print()" class="btn btn-gold btn-lg">Print / Save as PDF</button>
+    <a href="{% url 'finance:payment_create' %}?party={{ party.pk }}" class="btn btn-ghost btn-lg">Record payment</a>
+  </div>
+</div>
+
+<form method="get" class="filter-bar no-print">
+  {% if form.non_field_errors %}<div class="alert alert-danger" style="width:100%">{{ form.non_field_errors }}</div>{% endif %}
+  {% include 'finance/partials/field.html' with field=form.since %}
+  {% include 'finance/partials/field.html' with field=form.as_of %}
+  <button type="submit" class="btn btn-gold">Apply</button>
+  <a href="{% url 'finance:party_statement' party.pk %}" class="btn btn-ghost">Reset</a>
+</form>
+
+<div class="stat-row">
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ statement.opening_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Opening</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ statement.total_charged|floatformat:2 }}</div>
+    <div class="stat-lbl">Invoiced</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ statement.total_paid|floatformat:2 }}</div>
+    <div class="stat-lbl">Paid</div>
+  </div>
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ statement.closing_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Balance Due</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Transactions</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Date</th><th>Reference</th><th>Description</th><th class="num">Charged</th><th class="num">Paid</th><th class="num">Balance</th></tr>
+      </thead>
+      <tbody>
+        {% for row in statement.rows %}
+          <tr>
+            <td>{{ row.date|date:"d M Y" }}</td>
+            <td class="code-ref">
+              {% if row.kind == 'invoice' %}
+                <a href="{% url 'finance:invoice_detail' row.object.pk %}">{{ row.reference }}</a>
+              {% else %}
+                {{ row.reference }}
+              {% endif %}
+            </td>
+            <td>{{ row.description }}</td>
+            <td class="num">{% if row.charge %}<span class="money">৳{{ row.charge|floatformat:2 }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="num">{% if row.credit %}<span class="money pos">৳{{ row.credit|floatformat:2 }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="num money">৳{{ row.running_balance|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">📄</div>
+              <p>Nothing on this account{% if statement.since or statement.as_of %} in this period{% endif %}.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+      {% if statement.rows %}
+        <tfoot>
+          <tr style="background:#FAFAF8">
+            <td colspan="5" class="num" style="font-weight:700;text-transform:uppercase;font-size:.78rem;letter-spacing:.04em;color:#9A9188">Balance due</td>
+            <td class="num money" style="font-size:.95rem">৳{{ statement.closing_balance|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

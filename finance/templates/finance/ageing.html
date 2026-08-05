@@ -1,0 +1,83 @@
+{% extends 'finance/base_finance.html' %}
+{% load finance_extras %}
+{% block title %}Ageing Report{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Ageing Report</h1>
+    <p>Every unpaid invoice, grouped by how far past its due date it is.</p>
+  </div>
+  <form method="get" style="display:flex;gap:.5rem;align-items:center">
+    <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}" class="form-input" style="width:auto">
+    <button type="submit" class="btn btn-gold">As of date</button>
+  </form>
+</div>
+
+<div class="stat-row">
+  {% for bucket in ageing.buckets %}
+    <div class="stat-box {% if forloop.counter == 1 %}success{% elif forloop.counter == 2 %}info{% elif forloop.counter == 3 %}warning{% else %}danger{% endif %}">
+      <div class="stat-num">৳{{ ageing.bucket_totals|get_item:bucket|floatformat:2 }}</div>
+      <div class="stat-lbl">{{ bucket }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">By client</span>
+    <span class="muted" style="font-size:.78rem">As of {{ ageing.as_of|date:"d M Y" }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Client</th>
+          {% for bucket in ageing.buckets %}<th class="num">{{ bucket }}</th>{% endfor %}
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in ageing.parties %}
+          <tr>
+            <td>
+              <a href="{% url 'finance:party_statement' row.party.pk %}"><strong>{{ row.party.name }}</strong></a>
+              <div class="muted" style="font-size:.75rem">{{ row.invoices|length }} open invoice{{ row.invoices|length|pluralize }}</div>
+            </td>
+            {% for bucket in ageing.buckets %}
+              {% with value=row.buckets|get_item:bucket %}
+                <td class="num">
+                  {% if value %}
+                    <span class="money {% if forloop.counter > 2 %}neg{% endif %}">৳{{ value|floatformat:2 }}</span>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+              {% endwith %}
+            {% endfor %}
+            <td class="num money">৳{{ row.total|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ ageing.buckets|length|add:2 }}">
+            <div class="empty-state">
+              <div class="icon">✅</div>
+              <p>Nothing outstanding — every invoice has been settled.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+      {% if ageing.parties %}
+        <tfoot>
+          <tr style="background:#FAFAF8">
+            <td style="font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#9A9188">Total</td>
+            {% for bucket in ageing.buckets %}
+              <td class="num money">৳{{ ageing.bucket_totals|get_item:bucket|floatformat:2 }}</td>
+            {% endfor %}
+            <td class="num money" style="font-size:.95rem">৳{{ ageing.grand_total|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

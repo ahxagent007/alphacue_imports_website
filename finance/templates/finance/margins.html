@@ -1,0 +1,100 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Margins{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Margins</h1>
+    <p>What each product costs you landed, against what you sell it for.</p>
+  </div>
+  <a href="{% url 'finance:purchase_list' %}" class="btn btn-ghost btn-lg">Purchases</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ valuation.total_value|floatformat:2 }}</div>
+    <div class="stat-lbl">Stock Value</div>
+  </div>
+  <div class="stat-box {% if losing %}danger{% else %}success{% endif %}">
+    <div class="stat-num">{{ losing|length }}</div>
+    <div class="stat-lbl">Losing Money</div>
+    <div class="stat-sub">Priced at or below cost</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">{{ rows|length }}</div>
+    <div class="stat-lbl">Products</div>
+  </div>
+</div>
+
+{% if losing %}
+  <div class="alert alert-danger">
+    <strong>{{ losing|length }} product{{ losing|pluralize }} sell{{ losing|pluralize:"s," }} at or below landed cost.</strong>
+    Every one of those sales loses money.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Product margins</span>
+    <span class="muted" style="font-size:.78rem">Worst margin first · products with no cost data at the bottom</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Product</th><th class="num">Landed cost</th><th class="num">Sells at</th>
+          <th class="num">Margin ৳</th><th class="num">Margin %</th>
+          <th class="num">On hand</th><th class="num">Stock value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>
+              <a href="{% url 'finance:stock_detail' row.variant.pk %}">
+                <strong>{{ row.product.name }}</strong>
+              </a>
+              <div class="muted" style="font-size:.75rem">{{ row.variant.name }}</div>
+            </td>
+            <td class="num">
+              {% if row.has_cost %}
+                <span class="money">৳{{ row.cost|floatformat:2 }}</span>
+              {% else %}
+                <span class="muted">never purchased</span>
+              {% endif %}
+            </td>
+            <td class="num money">৳{{ row.price|floatformat:2 }}</td>
+            <td class="num">
+              {% if row.has_cost %}
+                <span class="money {% if row.margin > 0 %}pos{% else %}neg{% endif %}">৳{{ row.margin|floatformat:2 }}</span>
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+            <td class="num">
+              {% if row.has_cost %}
+                {% if row.margin > 0 %}
+                  <span class="pill pill-ok">{{ row.margin_percent }}%</span>
+                {% else %}
+                  <span class="pill pill-bad">{{ row.margin_percent }}%</span>
+                {% endif %}
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+            <td class="num">{{ row.qty_on_hand }}</td>
+            <td class="num money">৳{{ row.stock_value|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">📊</div>
+              <p>No products yet. Add some in the catalogue, then record a purchase to get costs.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

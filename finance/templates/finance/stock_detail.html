@@ -1,0 +1,112 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ variant }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:stock_list' %}">Stock</a> / {{ variant.product.name }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ variant.product.name }}</h1>
+    <p>{{ variant.name }} · SKU {{ variant.sku }} · sells at ৳{{ variant.price|floatformat:2 }}</p>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+    <a href="{% url 'finance:stock_adjust' %}" class="btn btn-ghost btn-lg">Adjust</a>
+    <div class="stat-box gold" style="min-width:150px">
+      <div class="stat-num">{{ on_hand }}</div>
+      <div class="stat-lbl">On Hand</div>
+    </div>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ unit_cost|floatformat:2 }}</div>
+    <div class="stat-lbl">Current Cost</div>
+    <div class="stat-sub">Average of what is left</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ variant.price|floatformat:2 }}</div>
+    <div class="stat-lbl">Selling Price</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Cost history by shipment</span>
+    <span class="muted" style="font-size:.78rem">FIFO consumes the oldest first</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Shipment</th><th>Received</th><th class="num">Qty in</th><th class="num">Remaining</th><th class="num">Landed cost/pc</th><th class="num">Value left</th></tr>
+      </thead>
+      <tbody>
+        {% for row in history %}
+          <tr>
+            <td class="code-ref">
+              {% if row.batch.purchase_item %}
+                <a href="{% url 'finance:purchase_detail' row.batch.purchase_item.purchase.pk %}">{{ row.reference }}</a>
+              {% else %}
+                {{ row.reference }}
+              {% endif %}
+            </td>
+            <td>{{ row.date|date:"d M Y" }}</td>
+            <td class="num">{{ row.qty_received }}</td>
+            <td class="num">
+              {% if row.qty_remaining %}{{ row.qty_remaining }}{% else %}<span class="muted">used up</span>{% endif %}
+            </td>
+            <td class="num money">৳{{ row.unit_cost|floatformat:2 }}</td>
+            <td class="num money">৳{{ row.value_remaining|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">📦</div>
+              <p>No stock has ever been received for this product.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Every movement</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Reason</th><th>Reference</th><th>Detail</th><th class="num">Change</th><th class="num">Cost</th></tr></thead>
+      <tbody>
+        {% for movement in movements %}
+          <tr>
+            <td>{{ movement.date|date:"d M Y" }}</td>
+            <td>
+              {% if movement.quantity > 0 %}
+                <span class="pill pill-ok">{{ movement.get_reason_display }}</span>
+              {% else %}
+                <span class="pill pill-warn">{{ movement.get_reason_display }}</span>
+              {% endif %}
+            </td>
+            <td class="code-ref">{{ movement.reference|default:"—" }}</td>
+            <td class="muted" style="font-size:.78rem">
+              {% for consumption in movement.consumptions.all %}
+                {{ consumption.quantity }} @ ৳{{ consumption.unit_cost|floatformat:2 }}
+                from {{ consumption.batch.source_reference }}{% if not forloop.last %}<br>{% endif %}
+              {% endfor %}
+              {% if movement.note %}<div>{{ movement.note }}</div>{% endif %}
+            </td>
+            <td class="num">
+              <span class="money {% if movement.quantity > 0 %}pos{% else %}neg{% endif %}">{{ movement.quantity|stringformat:"+d" }}</span>
+            </td>
+            <td class="num money">৳{{ movement.total_cost|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state"><div class="icon">📭</div><p>Nothing has moved yet.</p></div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

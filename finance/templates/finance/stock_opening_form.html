@@ -1,0 +1,41 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Opening Stock{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:stock_list' %}">Stock</a> / Opening stock</div>
+
+<div class="page-head">
+  <div>
+    <h1>Opening Stock</h1>
+    <p>What you already had on the shelf when the books started, and what it cost you.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="form-grid">
+        {% include 'finance/partials/field.html' with field=form.variant %}
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.quantity %}
+          {% include 'finance/partials/field.html' with field=form.unit_cost %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.date %}
+
+        <div class="alert alert-warning" style="margin:0">
+          This creates a stock batch so FIFO has something to consume, and posts the
+          value against <strong>3900 Opening Balances</strong>.
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Add opening stock</button>
+          <a href="{% url 'finance:stock_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

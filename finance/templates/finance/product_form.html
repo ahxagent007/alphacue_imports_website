@@ -1,0 +1,132 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{% if is_new %}New Product{% else %}Edit {{ product.name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="crumb">
+  <a href="{% url 'finance:product_list' %}">Products</a> /
+  {% if is_new %}New{% else %}{{ product.name }} / Edit{% endif %}
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>{% if is_new %}New Product{% else %}Edit Product{% endif %}</h1>
+    <p>
+      Price and stock live on the options below, not on the product itself.
+      A product with only one version still needs one option — call it "Standard".
+    </p>
+  </div>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Product</span></div>
+    <div class="card-body">
+      <div class="form-grid" style="max-width:none">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.name %}
+          {% include 'finance/partials/field.html' with field=form.category %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.sku %}
+          <div class="form-field">
+            <label>Status</label>
+            <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.85rem;font-weight:500;color:#1A1A1A;padding-top:.55rem">
+              {{ form.is_active }} Active — shown on the storefront
+            </label>
+          </div>
+        </div>
+        {% include 'finance/partials/field.html' with field=form.short_description %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Options</span>
+      <span class="muted" style="font-size:.78rem">Leave a row's name blank to skip it</span>
+    </div>
+    <div class="table-wrap">
+      {{ formset.management_form }}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="min-width:190px">Option name</th>
+            <th style="width:150px">SKU</th>
+            <th style="width:140px">Sells at ৳</th>
+            <th style="width:140px">Was ৳</th>
+            <th style="width:110px">Track stock</th>
+            <th style="width:90px">Active</th>
+            <th style="width:70px">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for variant_form in formset %}
+            <tr>
+              {{ variant_form.id }}
+              <td>
+                {{ variant_form.name }}
+                {% for error in variant_form.name.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                {% for error in variant_form.non_field_errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                {% if variant_form.instance.pk %}
+                  <div class="muted" style="font-size:.72rem;margin-top:.25rem">
+                    {{ variant_form.instance.stock }} in stock ·
+                    <a href="{% url 'finance:stock_detail' variant_form.instance.pk %}">stock history</a>
+                  </div>
+                {% endif %}
+              </td>
+              <td>{{ variant_form.sku }}</td>
+              <td>
+                {{ variant_form.price }}
+                {% for error in variant_form.price.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ variant_form.compare_price }}
+                {% for error in variant_form.compare_price.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td style="text-align:center">{{ variant_form.track_stock }}</td>
+              <td style="text-align:center">{{ variant_form.is_active }}</td>
+              <td style="text-align:center">{% if variant_form.instance.pk %}{{ variant_form.DELETE }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.8rem;line-height:1.7">
+        <strong>Was ৳</strong> is the crossed-out price on the storefront — leave it blank if
+        the item is not on offer. <strong>Track stock</strong> off means it can always be
+        ordered, which suits services and made-to-order items.
+      </p>
+    </div>
+  </div>
+
+  <div class="form-actions" style="margin-bottom:2rem">
+    <button type="submit" class="btn btn-gold btn-lg">{% if is_new %}Create product{% else %}Save changes{% endif %}</button>
+    {% if is_new %}
+      <button type="submit" name="then_purchase" value="1" class="btn btn-ghost btn-lg">Create &amp; buy stock in</button>
+    {% endif %}
+    <a href="{% url 'finance:product_list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+  </div>
+</form>
+
+{% if is_new %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">What happens next</span></div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.85rem;line-height:1.8">
+        A new product starts with <strong>no stock and no cost</strong>. To make it sellable
+        with a real margin, either record a
+        <a href="{% url 'finance:purchase_create' %}"><strong>purchase</strong></a> and receive it,
+        or enter <a href="{% url 'finance:stock_opening' %}"><strong>opening stock</strong></a>
+        if you already have some on the shelf.<br>
+        Until then it shows as "never bought" on the margins report, because nothing
+        has told the system what it costs you.
+      </p>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Expenses{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Expenses</h1>
+    <p>Everything recorded as a cost. Totals feed straight into net profit.</p>
+  </div>
+  <a href="{% url 'finance:expense_create' %}" class="btn btn-gold btn-lg">+ Record expense</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ expense_total|floatformat:2 }}</div>
+    <div class="stat-lbl">Total Spent</div>
+    <div class="stat-sub">All time, all categories</div>
+  </div>
+  {% for category in categories %}
+    {% if category.natural_total != 0 %}
+      <div class="stat-box info">
+        <div class="stat-num">৳{{ category.natural_total|floatformat:2 }}</div>
+        <div class="stat-lbl">{{ category.name }}</div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="category">Category</label>
+    <select name="category" id="category" class="form-input">
+      <option value="">All categories</option>
+      {% for category in categories %}
+        <option value="{{ category.pk }}" {% if category_id == category.pk|stringformat:"s" %}selected{% endif %}>
+          {{ category.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if category_id %}<a href="{% url 'finance:expense_list' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} expense{{ page_obj.paginator.count|pluralize }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Date</th><th>Description</th><th>Category</th><th>Paid from</th><th class="num">Amount</th></tr>
+      </thead>
+      <tbody>
+        {% for txn in page_obj %}
+          <tr>
+            <td class="code-ref"><a href="{% url 'finance:transaction_detail' txn.pk %}">{{ txn.reference_no }}</a></td>
+            <td>{{ txn.date|date:"d M Y" }}</td>
+            <td>
+              {{ txn.description }}
+              {% if txn.is_reversed %}<span class="pill pill-bad" style="margin-left:.4rem">Reversed</span>{% endif %}
+            </td>
+            <td>{% for line in txn.debit_lines %}{{ line.account.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+            <td class="muted">{% for line in txn.credit_lines %}{{ line.account.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+            <td class="num money">৳{{ txn.total|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">🧮</div>
+              <p>No expenses recorded yet.</p>
+              <p style="margin-top:.6rem"><a href="{% url 'finance:expense_create' %}" class="btn btn-gold">Record the first one</a></p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if category_id %}&category={{ category_id }}{% endif %}">← Previous</a>
+    {% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if category_id %}&category={{ category_id }}{% endif %}">Next →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

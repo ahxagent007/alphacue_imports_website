@@ -1,0 +1,67 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Cash Flow{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Cash Flow</h1>
+    <p>Money in and out by month, {{ since|date:"d M Y" }} — {{ as_of|date:"d M Y" }}.</p>
+  </div>
+  <form method="get" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+    <input type="date" name="since" value="{{ since|date:'Y-m-d' }}" class="form-input" style="width:auto">
+    <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}" class="form-input" style="width:auto">
+    <button type="submit" class="btn btn-gold">Apply</button>
+    <a href="{% url 'finance:export_csv' 'daybook' %}?since={{ since|date:'Y-m-d' }}&as_of={{ as_of|date:'Y-m-d' }}"
+       class="btn btn-ghost">Export CSV</a>
+  </form>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ book.opening_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Opening</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ book.total_in|floatformat:2 }}</div>
+    <div class="stat-lbl">Money In</div>
+  </div>
+  <div class="stat-box danger">
+    <div class="stat-num">৳{{ book.total_out|floatformat:2 }}</div>
+    <div class="stat-lbl">Money Out</div>
+  </div>
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ book.closing_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Closing</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">By month</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Month</th><th class="num">Opening</th><th class="num">In</th><th class="num">Out</th><th class="num">Net</th><th class="num">Closing</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><strong>{{ row.label }}</strong></td>
+            <td class="num">৳{{ row.opening|floatformat:2 }}</td>
+            <td class="num money pos">৳{{ row.in|floatformat:2 }}</td>
+            <td class="num money neg">৳{{ row.out|floatformat:2 }}</td>
+            <td class="num">
+              <span class="money {% if row.net >= 0 %}pos{% else %}neg{% endif %}">৳{{ row.net|floatformat:2 }}</span>
+            </td>
+            <td class="num money">৳{{ row.closing|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">💵</div>
+              <p>No money moved in this period.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

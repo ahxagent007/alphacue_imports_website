@@ -1,0 +1,72 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{% if is_new %}New Account{% else %}Edit {{ account.name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="crumb">
+  <a href="{% url 'finance:account_list' %}">Accounts</a> /
+  {% if is_new %}New{% else %}<a href="{% url 'finance:account_detail' account.pk %}">{{ account.code }}</a> / Edit{% endif %}
+</div>
+
+<div class="page-head">
+  <div>
+    <h1>{% if is_new %}New Account{% else %}Edit Account{% endif %}</h1>
+    <p>
+      {% if is_new %}
+        A place money sits or flows through — a wallet, a bank account, or an expense category.
+      {% else %}
+        Renaming is safe. Balances are calculated from the ledger and will not change.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.code %}
+          {% include 'finance/partials/field.html' with field=form.type %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.name %}
+        {% include 'finance/partials/field.html' with field=form.description %}
+
+        <div class="form-field">
+          <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.85rem;font-weight:500;color:#1A1A1A">
+            {{ form.is_active }} Active — inactive accounts cannot be posted to
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">
+            {% if is_new %}Create account{% else %}Save changes{% endif %}
+          </button>
+          <a href="{% if is_new %}{% url 'finance:account_list' %}{% else %}{% url 'finance:account_detail' account.pk %}{% endif %}"
+             class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Code ranges</span></div>
+  <div class="card-body">
+    <table class="data-table">
+      <tbody>
+        <tr><td class="code-ref">1000s</td><td>Things the business owns — cash, stock, money owed to you</td></tr>
+        <tr><td class="code-ref">2000s</td><td>Things the business owes — suppliers, loans, commission</td></tr>
+        <tr><td class="code-ref">3000s</td><td>Owner and investor capital</td></tr>
+        <tr><td class="code-ref">4000s</td><td>Income</td></tr>
+        <tr><td class="code-ref">5000s</td><td>Expenses — these become your expense categories</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

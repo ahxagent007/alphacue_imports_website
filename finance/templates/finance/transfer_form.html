@@ -1,0 +1,60 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Transfer Money{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Transfer Money</h1>
+    <p>Move money between accounts you own. Your total cash does not change — only where it sits.</p>
+  </div>
+</div>
+
+{% include 'finance/partials/money_strip.html' %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-grid">
+        {% include 'finance/partials/field.html' with field=form.date %}
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.from_account %}
+          {% include 'finance/partials/field.html' with field=form.to_account %}
+        </div>
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.amount %}
+          {% include 'finance/partials/field.html' with field=form.fee %}
+        </div>
+        {% include 'finance/partials/field.html' with field=form.description %}
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-gold btn-lg">Transfer</button>
+          <a href="{% url 'finance:daybook' %}" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">How the charge is handled</span></div>
+  <div class="card-body">
+    <p class="muted" style="font-size:.85rem;line-height:1.6">
+      A cash-out charge is taken from the source account <strong>on top of</strong> the amount,
+      which is how bKash and Nagad actually work. Cashing out ৳5,000 with a ৳93 charge posts as:
+    </p>
+    <table class="data-table" style="margin-top:.8rem">
+      <tbody>
+        <tr><td>Cash in Hand</td><td class="num"><span class="money pos">+৳5,000.00</span></td><td class="muted">what you received</td></tr>
+        <tr><td>Bank &amp; Payment Charges</td><td class="num"><span class="money pos">+৳93.00</span></td><td class="muted">recorded as an expense</td></tr>
+        <tr><td>bKash</td><td class="num"><span class="money neg">−৳5,093.00</span></td><td class="muted">what actually left the wallet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

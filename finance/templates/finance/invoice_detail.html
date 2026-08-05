@@ -1,0 +1,218 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ invoice.display_number }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:invoice_list' %}">Invoices</a> / {{ invoice.display_number }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ invoice.display_number }}</h1>
+    <p>
+      <a href="{% url 'finance:party_detail' invoice.party.pk %}">{{ invoice.party.name }}</a>
+      · issued {{ invoice.issue_date|date:"d M Y" }}
+      {% if invoice.due_date %} · due {{ invoice.due_date|date:"d M Y" }}{% endif %}
+      {% if invoice.order %} · from order
+        <a href="{% url 'store:manage_order_detail' invoice.order.order_number %}">{{ invoice.order.order_number }}</a>
+      {% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    {% if invoice.is_editable %}
+      <a href="{% url 'finance:invoice_edit' invoice.pk %}" class="btn btn-ghost btn-lg">Edit</a>
+      <form method="post" action="{% url 'finance:invoice_issue' invoice.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-gold btn-lg">Issue invoice</button>
+      </form>
+    {% else %}
+      <a href="{% url 'finance:invoice_print' invoice.pk %}" target="_blank" class="btn btn-gold btn-lg">Print / Save as PDF</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if invoice.status == 'draft' %}
+  <div class="alert alert-warning">
+    <strong>Draft.</strong> Nothing has been posted to the ledger and {{ invoice.party.name }}
+    does not owe this yet. Issuing assigns the invoice number and records the amount as owed.
+  </div>
+{% elif invoice.status == 'cancelled' %}
+  <div class="alert alert-danger">
+    <strong>Cancelled.</strong> The ledger entry has been reversed, so this is no longer owed.
+  </div>
+{% elif invoice.is_overdue %}
+  <div class="alert alert-danger">
+    <strong>Overdue by {{ invoice.days_overdue }} day{{ invoice.days_overdue|pluralize }}.</strong>
+    ৳{{ invoice.amount_due|floatformat:2 }} still outstanding.
+  </div>
+{% endif %}
+
+{% if invoice.party.is_over_credit_limit and invoice.is_open %}
+  <div class="alert alert-warning">
+    {{ invoice.party.name }} now owes ৳{{ invoice.party.outstanding|floatformat:2 }},
+    above their ৳{{ invoice.party.credit_limit|floatformat:2 }} credit limit.
+  </div>
+{% endif %}
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ invoice.total|floatformat:2 }}</div>
+    <div class="stat-lbl">Invoice Total</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ invoice.amount_paid|floatformat:2 }}</div>
+    <div class="stat-lbl">Received</div>
+    {% if invoice.is_open %}
+      <div class="stat-sub">
+        <a href="{% url 'finance:payment_create' %}?party={{ invoice.party.pk }}">Record a payment →</a>
+      </div>
+    {% endif %}
+  </div>
+  <div class="stat-box {% if invoice.amount_due > 0 %}danger{% else %}success{% endif %}">
+    <div class="stat-num">৳{{ invoice.amount_due|floatformat:2 }}</div>
+    <div class="stat-lbl">Outstanding</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num" style="font-size:1.1rem">{{ invoice.display_status }}</div>
+    <div class="stat-lbl">Status</div>
+    <div class="stat-sub">{{ invoice.get_payment_terms_days_display }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Lines</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Description</th><th>SKU</th><th class="num">Unit price</th><th class="num">Qty</th><th class="num">Discount</th><th class="num">Total</th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td><strong>{{ item.description }}</strong></td>
+            <td class="code-ref">{{ item.sku|default:"—" }}</td>
+            <td class="num">৳{{ item.unit_price|floatformat:2 }}</td>
+            <td class="num">{{ item.quantity }}</td>
+            <td class="num">{% if item.discount %}−৳{{ item.discount|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="num money">৳{{ item.line_total|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">📝</div>
+              <p>No lines yet — this invoice cannot be issued until it has at least one.</p>
+              {% if invoice.is_editable %}
+                <p style="margin-top:.6rem"><a href="{% url 'finance:invoice_edit' invoice.pk %}" class="btn btn-gold">Add lines</a></p>
+              {% endif %}
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+      {% if items %}
+        <tfoot>
+          <tr><td colspan="5" class="num muted">Subtotal</td><td class="num money">৳{{ invoice.subtotal|floatformat:2 }}</td></tr>
+          {% if invoice.discount %}
+            <tr><td colspan="5" class="num muted">Invoice discount</td><td class="num"><span class="money neg">−৳{{ invoice.discount|floatformat:2 }}</span></td></tr>
+          {% endif %}
+          {% if invoice.delivery_charge %}
+            <tr><td colspan="5" class="num muted">Delivery</td><td class="num money">৳{{ invoice.delivery_charge|floatformat:2 }}</td></tr>
+          {% endif %}
+          <tr style="background:#FAFAF8">
+            <td colspan="5" class="num" style="font-weight:700;text-transform:uppercase;font-size:.78rem;letter-spacing:.04em;color:#9A9188">Total</td>
+            <td class="num money" style="font-size:.95rem">৳{{ invoice.total|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+{% if invoice.notes %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Notes</span></div>
+    <div class="card-body"><p style="font-size:.85rem;line-height:1.6">{{ invoice.notes|linebreaksbr }}</p></div>
+  </div>
+{% endif %}
+
+{% if share_url %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Share with the client</span></div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.85rem;line-height:1.6;margin-bottom:.7rem">
+        This link opens the invoice without a login. Anyone holding it can view the invoice,
+        so send it to the client directly rather than posting it publicly.
+      </p>
+      <input type="text" class="form-input" readonly value="{{ share_url }}"
+             onclick="this.select()" style="font-family:ui-monospace,monospace;font-size:.8rem">
+
+      <form method="post" action="{% url 'finance:invoice_share' invoice.pk %}"
+            style="display:flex;gap:.5rem;margin-top:.9rem;flex-wrap:wrap">
+        {% csrf_token %}
+        <button type="submit" name="action" value="regenerate" class="btn btn-ghost">
+          Replace link
+        </button>
+        <button type="submit" name="action" value="revoke" class="btn btn-ghost"
+                style="border-color:#EF4444;color:#991B1B">Stop sharing</button>
+      </form>
+      <p class="muted" style="font-size:.78rem;margin-top:.5rem">
+        Sent it to the wrong person? Either button kills the old link immediately.
+      </p>
+    </div>
+  </div>
+{% elif invoice.is_open or invoice.status == 'paid' %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Share with the client</span></div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.85rem;line-height:1.6;margin-bottom:.9rem">
+        Sharing is switched off for this invoice. Creating a link lets the client
+        open it without logging in.
+      </p>
+      <form method="post" action="{% url 'finance:invoice_share' invoice.pk %}">
+        {% csrf_token %}
+        <button type="submit" name="action" value="regenerate" class="btn btn-gold">
+          Create a share link
+        </button>
+      </form>
+    </div>
+  </div>
+{% endif %}
+
+{% if invoice.transaction %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Ledger entry</span></div>
+    <div class="card-body">
+      <p style="font-size:.85rem">
+        Posted as
+        <a href="{% url 'finance:transaction_detail' invoice.transaction.pk %}">
+          <strong>{{ invoice.transaction.reference_no }}</strong></a>
+        on {{ invoice.transaction.date|date:"d M Y" }}.
+      </p>
+    </div>
+  </div>
+{% endif %}
+
+{% if invoice.status != 'cancelled' %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Cancel this invoice</span></div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.85rem;line-height:1.6;margin-bottom:.9rem">
+        {% if invoice.is_editable %}
+          This draft will be marked cancelled. Nothing was posted, so no balances change.
+        {% else %}
+          The ledger entry will be reversed and {{ invoice.party.name }} will stop owing this amount.
+          Both entries stay visible in the ledger.
+        {% endif %}
+      </p>
+      <form method="post" action="{% url 'finance:invoice_cancel' invoice.pk %}">
+        {% csrf_token %}
+        <div class="form-grid">
+          {% include 'finance/partials/field.html' with field=cancel_form.reason %}
+          <div class="form-actions">
+            <button type="submit" class="btn btn-ghost btn-lg" style="border-color:#EF4444;color:#991B1B">
+              Cancel invoice
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

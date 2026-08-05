@@ -1,0 +1,77 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Stock Movements{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Stock Movements</h1>
+    <p>Every change in stock, ever. This is what makes a wrong number explainable.</p>
+  </div>
+  <a href="{% url 'finance:stock_list' %}" class="btn btn-ghost btn-lg">← Stock</a>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="form-field">
+    <label for="reason">Reason</label>
+    <select name="reason" id="reason" class="form-input">
+      <option value="">All</option>
+      {% for value, label in reason_choices %}
+        <option value="{{ value }}" {% if reason == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold">Filter</button>
+  {% if reason %}<a href="{% url 'finance:stock_movements' %}" class="btn btn-ghost">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ page_obj.paginator.count }} movement{{ page_obj.paginator.count|pluralize }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Product</th><th>Reason</th><th>Reference</th><th>Batches used</th><th class="num">Change</th><th class="num">Cost</th></tr></thead>
+      <tbody>
+        {% for movement in page_obj %}
+          <tr>
+            <td>{{ movement.date|date:"d M Y" }}</td>
+            <td><a href="{% url 'finance:stock_detail' movement.variant.pk %}">{{ movement.variant }}</a></td>
+            <td>
+              {% if movement.quantity > 0 %}
+                <span class="pill pill-ok">{{ movement.get_reason_display }}</span>
+              {% else %}
+                <span class="pill pill-warn">{{ movement.get_reason_display }}</span>
+              {% endif %}
+            </td>
+            <td class="code-ref">{{ movement.reference|default:"—" }}</td>
+            <td class="muted" style="font-size:.76rem">
+              {% for consumption in movement.consumptions.all %}
+                {{ consumption.quantity }} @ ৳{{ consumption.unit_cost|floatformat:2 }}{% if not forloop.last %}, {% endif %}
+              {% empty %}
+                —
+              {% endfor %}
+              {% if movement.note %}<div style="color:#991B1B">{{ movement.note }}</div>{% endif %}
+            </td>
+            <td class="num">
+              <span class="money {% if movement.quantity > 0 %}pos{% else %}neg{% endif %}">{{ movement.quantity|stringformat:"+d" }}</span>
+            </td>
+            <td class="num money">৳{{ movement.total_cost|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state"><div class="icon">📦</div><p>No stock movements recorded yet.</p></div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:.5rem;align-items:center;justify-content:center">
+    {% if page_obj.has_previous %}<a class="btn btn-ghost" href="?page={{ page_obj.previous_page_number }}{% if reason %}&reason={{ reason }}{% endif %}">← Previous</a>{% endif %}
+    <span class="muted" style="font-size:.8rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn btn-ghost" href="?page={{ page_obj.next_page_number }}{% if reason %}&reason={{ reason }}{% endif %}">Next →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

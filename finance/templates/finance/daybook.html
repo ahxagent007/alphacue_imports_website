@@ -1,0 +1,94 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}Day Book{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Day Book</h1>
+    <p>
+      Every movement of spendable money{% if book.account %} through {{ book.account.name }}{% endif %},
+      with a running balance.
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <a href="{% url 'finance:expense_create' %}" class="btn btn-ghost btn-lg">+ Expense</a>
+    <a href="{% url 'finance:transfer_create' %}" class="btn btn-gold btn-lg">↔ Transfer</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ book.opening_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Opening</div>
+    <div class="stat-sub">{% if book.since %}Before {{ book.since|date:"d M Y" }}{% else %}Start of records{% endif %}</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">৳{{ book.total_in|floatformat:2 }}</div>
+    <div class="stat-lbl">Money In</div>
+  </div>
+  <div class="stat-box danger">
+    <div class="stat-num">৳{{ book.total_out|floatformat:2 }}</div>
+    <div class="stat-lbl">Money Out</div>
+  </div>
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ book.closing_balance|floatformat:2 }}</div>
+    <div class="stat-lbl">Closing</div>
+    <div class="stat-sub">{% if book.as_of %}As of {{ book.as_of|date:"d M Y" }}{% else %}Right now{% endif %}</div>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="width:100%">{{ form.non_field_errors }}</div>
+  {% endif %}
+  {% include 'finance/partials/field.html' with field=form.since %}
+  {% include 'finance/partials/field.html' with field=form.as_of %}
+  {% include 'finance/partials/field.html' with field=form.account %}
+  <button type="submit" class="btn btn-gold">Apply</button>
+  <a href="{% url 'finance:daybook' %}" class="btn btn-ghost">Reset</a>
+</form>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">{{ book.rows|length }} entr{{ book.rows|length|pluralize:"y,ies" }}</span>
+    <span class="muted" style="font-size:.78rem">Newest first · running balance reads bottom-up</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Reference</th><th>Date</th><th>Description</th><th>Account</th>
+          <th class="num">In</th><th class="num">Out</th><th class="num">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="code-ref"><a href="{% url 'finance:transaction_detail' row.transaction.pk %}">{{ row.transaction.reference_no }}</a></td>
+            <td>{{ row.transaction.date|date:"d M Y" }}</td>
+            <td>
+              {{ row.transaction.description }}
+              {% if row.transaction.is_reversed %}<span class="pill pill-bad" style="margin-left:.4rem">Reversed</span>{% endif %}
+              {% if row.line.memo %}<div class="muted" style="font-size:.75rem">{{ row.line.memo }}</div>{% endif %}
+            </td>
+            <td class="muted">{{ row.account.name }}</td>
+            <td class="num">{% if row.money_in %}<span class="money pos">৳{{ row.money_in|floatformat:2 }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="num">{% if row.money_out %}<span class="money neg">৳{{ row.money_out|floatformat:2 }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="num money">৳{{ row.running_balance|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="icon">💵</div>
+              <p>No money has moved{% if book.since or book.as_of %} in this date range{% endif %} yet.</p>
+              <p style="margin-top:.6rem">
+                Start by setting opening balances on your accounts, then record an expense.
+              </p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

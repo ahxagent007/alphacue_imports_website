@@ -1,0 +1,205 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ purchase.purchase_no }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:purchase_list' %}">Purchases</a> / {{ purchase.purchase_no }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ purchase.purchase_no }}</h1>
+    <p>
+      {{ purchase.supplier.name }} · {{ purchase.get_purchase_type_display }}
+      · ordered {{ purchase.purchase_date|date:"d M Y" }}
+      {% if purchase.received_date %} · received {{ purchase.received_date|date:"d M Y" }}{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    {% if purchase.is_editable %}
+      <a href="{% url 'finance:purchase_edit' purchase.pk %}" class="btn btn-ghost btn-lg">Edit</a>
+      {% if purchase.status == 'draft' %}
+        <form method="post" action="{% url 'finance:purchase_order' purchase.pk %}" style="display:inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-lg">Confirm order</button>
+        </form>
+      {% endif %}
+      <form method="post" action="{% url 'finance:purchase_receive' purchase.pk %}"
+            style="display:flex;gap:.4rem;align-items:center">
+        {% csrf_token %}
+        {{ receive_form.received_date }}
+        <button type="submit" class="btn btn-gold btn-lg">Receive into stock</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if purchase.status == 'draft' %}
+  <div class="alert alert-warning">
+    <strong>Draft.</strong> Nothing has been posted. Confirm the order to book the
+    goods as in transit, or receive it straight away if it has already arrived.
+  </div>
+{% elif purchase.status == 'cancelled' %}
+  <div class="alert alert-danger"><strong>Cancelled.</strong> All postings have been reversed.</div>
+{% elif purchase.is_received %}
+  <div class="alert alert-success">
+    <strong>Received.</strong> The landed cost below is frozen into the stock batches
+    and will follow these units through to the sales that use them.
+  </div>
+{% elif purchase.is_import and not purchase.has_weights %}
+  <div class="alert alert-warning">
+    <strong>Waiting on the weight charge.</strong> The cost below is provisional —
+    it covers the goods only. <a href="{% url 'finance:purchase_edit' purchase.pk %}"><strong>Enter the weights</strong></a>
+    once the agent bills you, then receive the shipment.
+  </div>
+{% endif %}
+
+<div class="stat-row">
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ purchase.goods_total_bdt|floatformat:2 }}</div>
+    <div class="stat-lbl">Goods</div>
+    {% if purchase.is_import %}<div class="stat-sub">@ ৳{{ purchase.fx_rate_rmb_to_bdt }} per ¥1</div>{% endif %}
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ purchase.shipping_total_bdt|floatformat:2 }}</div>
+    <div class="stat-lbl">Shipping</div>
+    <div class="stat-sub">Weight ৳{{ purchase.freight_total_bdt|floatformat:0 }} + extra ৳{{ purchase.extra_cost_bdt|floatformat:0 }}</div>
+  </div>
+  <div class="stat-box danger">
+    <div class="stat-num">৳{{ purchase.correction_amount_bdt|floatformat:2 }}</div>
+    <div class="stat-lbl">Correction {{ purchase.correction_percent }}%</div>
+  </div>
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ purchase.landed_total_bdt|floatformat:2 }}</div>
+    <div class="stat-lbl">Landed Total</div>
+    <div class="stat-sub">{{ purchase.total_quantity }} unit(s)</div>
+  </div>
+</div>
+
+{% if purchase.is_import and purchase.billed_weight_kg %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Weight reconciliation</span></div>
+    <div class="card-body">
+      <p style="font-size:.85rem;line-height:1.7">
+        You entered <strong>{{ purchase.entered_weight_total|floatformat:3 }} kg</strong> across the lines;
+        the agent billed <strong>{{ purchase.billed_weight_kg|floatformat:3 }} kg</strong>.
+        Each line's weight is scaled by <strong>×{{ purchase.weight_scale|floatformat:4 }}</strong>
+        so the shipping cost you were actually charged is fully spread across the products —
+        nothing goes unbilled.
+      </p>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head"><span class="card-title">Cost breakdown</span></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Product</th><th class="num">Qty</th>
+          <th class="num">Goods ৳</th><th class="num">Weight kg</th>
+          <th class="num">Freight ৳</th><th class="num">Extra ৳</th>
+          <th class="num">+{{ purchase.correction_percent }}%</th>
+          <th class="num">Landed total</th><th class="num">Per unit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td>
+              <strong>{{ item.variant.product.name }}</strong>
+              <div class="muted" style="font-size:.75rem">{{ item.variant.name }}</div>
+            </td>
+            <td class="num">{{ item.quantity }}</td>
+            <td class="num">৳{{ item.goods_bdt|floatformat:2 }}</td>
+            <td class="num">
+              {{ item.scaled_weight_kg|floatformat:3 }}
+              {% if purchase.weight_scale != 1 %}
+                <div class="muted" style="font-size:.7rem">entered {{ item.entered_weight_kg|floatformat:3 }}</div>
+              {% endif %}
+            </td>
+            <td class="num">৳{{ item.freight_bdt|floatformat:2 }}</td>
+            <td class="num">৳{{ item.extra_share_bdt|floatformat:2 }}</td>
+            <td class="num">৳{{ item.correction_bdt|floatformat:2 }}</td>
+            <td class="num money">৳{{ item.landed_total_bdt|floatformat:2 }}</td>
+            <td class="num">
+              <span class="money">৳{{ item.landed_unit_bdt|floatformat:2 }}</span>
+              {% if item.variant.price %}
+                <div class="muted" style="font-size:.7rem">
+                  sells ৳{{ item.variant.price|floatformat:0 }} ·
+                  <span class="{% if item.margin_bdt > 0 %}money pos{% else %}money neg{% endif %}">{{ item.margin_percent }}%</span>
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9">
+            <div class="empty-state"><div class="icon">📦</div><p>No products on this purchase.</p></div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if batches %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Stock created</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Product</th><th class="num">Received</th><th class="num">Remaining</th><th class="num">Unit cost</th><th class="num">Value left</th></tr></thead>
+        <tbody>
+          {% for batch in batches %}
+            <tr>
+              <td><a href="{% url 'finance:stock_detail' batch.variant.pk %}">{{ batch.variant }}</a></td>
+              <td class="num">{{ batch.qty_received }}</td>
+              <td class="num">{{ batch.qty_remaining }}</td>
+              <td class="num money">৳{{ batch.unit_cost|floatformat:2 }}</td>
+              <td class="num money">৳{{ batch.value_remaining|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+{% if purchase.order_transaction or purchase.receipt_transaction %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Ledger entries</span></div>
+    <div class="card-body">
+      {% if purchase.order_transaction %}
+        <p style="font-size:.85rem">Ordered:
+          <a href="{% url 'finance:transaction_detail' purchase.order_transaction.pk %}">
+            <strong>{{ purchase.order_transaction.reference_no }}</strong></a></p>
+      {% endif %}
+      {% if purchase.receipt_transaction %}
+        <p style="font-size:.85rem;margin-top:.4rem">Received:
+          <a href="{% url 'finance:transaction_detail' purchase.receipt_transaction.pk %}">
+            <strong>{{ purchase.receipt_transaction.reference_no }}</strong></a></p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{% if purchase.status != 'cancelled' %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Cancel this purchase</span></div>
+    <div class="card-body">
+      <p class="muted" style="font-size:.85rem;line-height:1.6;margin-bottom:.9rem">
+        Reverses whatever has been posted. A received purchase can only be cancelled
+        while none of its stock has been sold — unpicking that would rewrite the cost
+        of sales that already happened.
+      </p>
+      <form method="post" action="{% url 'finance:purchase_cancel' purchase.pk %}">
+        {% csrf_token %}
+        <div class="form-grid">
+          {% include 'finance/partials/field.html' with field=cancel_form.reason %}
+          <div class="form-actions">
+            <button type="submit" class="btn btn-ghost btn-lg" style="border-color:#EF4444;color:#991B1B">Cancel purchase</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

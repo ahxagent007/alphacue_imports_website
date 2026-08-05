@@ -1,0 +1,134 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ loan.loan_no }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:loan_list' %}">Loans</a> / {{ loan.loan_no }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ loan.loan_no }}</h1>
+    <p>
+      {% if loan.is_taken %}Borrowed from{% else %}Lent to{% endif %}
+      <strong>{{ loan.counterparty_name }}</strong>
+      · {{ loan.interest_rate }}% {{ loan.get_method_display|truncatewords:2|lower }}
+      · {{ loan.tenure_months }} installments from {{ loan.start_date|date:"d M Y" }}
+    </p>
+  </div>
+</div>
+
+{% if loan.status == 'closed' %}
+  <div class="alert alert-success"><strong>Closed.</strong> Every installment has been settled.</div>
+{% elif loan.overdue_installments %}
+  <div class="alert alert-danger">
+    <strong>{{ loan.overdue_installments|length }} installment{{ loan.overdue_installments|length|pluralize }} overdue.</strong>
+  </div>
+{% endif %}
+
+<div class="stat-row">
+  <div class="stat-box gold">
+    <div class="stat-num">৳{{ loan.outstanding|floatformat:2 }}</div>
+    <div class="stat-lbl">Principal Left</div>
+  </div>
+  <div class="stat-box info">
+    <div class="stat-num">৳{{ loan.principal|floatformat:2 }}</div>
+    <div class="stat-lbl">Original Amount</div>
+  </div>
+  <div class="stat-box warning">
+    <div class="stat-num">৳{{ loan.total_interest|floatformat:2 }}</div>
+    <div class="stat-lbl">Total Interest</div>
+    <div class="stat-sub">৳{{ loan.interest_paid|floatformat:2 }} paid so far</div>
+  </div>
+  <div class="stat-box success">
+    <div class="stat-num">{{ loan.installments_remaining }}</div>
+    <div class="stat-lbl">Installments Left</div>
+    <div class="stat-sub">of {{ loan.tenure_months }}</div>
+  </div>
+</div>
+
+{% if loan.status == 'active' %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Record a repayment</span></div>
+    <div class="card-body">
+      <form method="post" action="{% url 'finance:loan_pay' loan.pk %}" novalidate>
+        {% csrf_token %}
+        {% if payment_form.non_field_errors %}<div class="alert alert-danger">{{ payment_form.non_field_errors }}</div>{% endif %}
+        <div class="form-grid" style="max-width:none">
+          <div class="form-row">
+            {% include 'finance/partials/field.html' with field=payment_form.installment %}
+            {% include 'finance/partials/field.html' with field=payment_form.date %}
+          </div>
+          <div class="form-row">
+            {% include 'finance/partials/field.html' with field=payment_form.principal_amount %}
+            {% include 'finance/partials/field.html' with field=payment_form.interest_amount %}
+          </div>
+          <div class="form-row">
+            {% include 'finance/partials/field.html' with field=payment_form.account %}
+            {% include 'finance/partials/field.html' with field=payment_form.reference %}
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-gold btn-lg">Record repayment</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Repayment schedule</span>
+    <span class="muted" style="font-size:.78rem">Total repayable ৳{{ loan.total_repayable|floatformat:2 }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>#</th><th>Due</th><th class="num">Principal</th><th class="num">Interest</th><th class="num">Total</th><th class="num">Paid</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for installment in installments %}
+          <tr>
+            <td>{{ installment.number }}</td>
+            <td>{{ installment.due_date|date:"d M Y" }}</td>
+            <td class="num">৳{{ installment.principal_due|floatformat:2 }}</td>
+            <td class="num">৳{{ installment.interest_due|floatformat:2 }}</td>
+            <td class="num money">৳{{ installment.total_due|floatformat:2 }}</td>
+            <td class="num">
+              {% if installment.total_paid %}<span class="money pos">৳{{ installment.total_paid|floatformat:2 }}</span>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td>
+              {% if installment.status == 'paid' %}<span class="pill pill-ok">Paid</span>
+              {% elif installment.is_overdue %}<span class="pill pill-bad">Overdue {{ installment.days_overdue }}d</span>
+              {% elif installment.status == 'partial' %}<span class="pill pill-warn">Part paid</span>
+              {% else %}<span class="pill pill-muted">Due</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if payments %}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Repayments made</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Account</th><th>Reference</th><th class="num">Principal</th><th class="num">Interest</th><th class="num">Total</th></tr></thead>
+        <tbody>
+          {% for payment in payments %}
+            <tr>
+              <td>{{ payment.date|date:"d M Y" }}</td>
+              <td class="muted">{{ payment.account.name }}</td>
+              <td class="code-ref">{{ payment.reference|default:"—" }}</td>
+              <td class="num">৳{{ payment.principal_amount|floatformat:2 }}</td>
+              <td class="num">৳{{ payment.interest_amount|floatformat:2 }}</td>
+              <td class="num money">৳{{ payment.total_amount|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'finance/base_finance.html' %}
+{% block title %}{{ account.name }}{% endblock %}
+
+{% block content %}
+<div class="crumb"><a href="{% url 'finance:account_list' %}">Accounts</a> / {{ account.code }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ account.name }}</h1>
+    <p>{{ account.get_type_display }}{% if account.description %} · {{ account.description }}{% endif %}</p>
+  </div>
+  <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+    <a href="{% url 'finance:account_edit' account.pk %}" class="btn btn-ghost btn-lg">Edit</a>
+    {% if not has_opening %}
+      <a href="{% url 'finance:opening_balance' account.pk %}" class="btn btn-ghost btn-lg">Set opening balance</a>
+    {% endif %}
+    <div class="stat-box gold" style="min-width:180px">
+      <div class="stat-num">৳{{ balance|floatformat:2 }}</div>
+      <div class="stat-lbl">Current Balance</div>
+    </div>
+  </div>
+</div>
+
+{% if not account.is_active %}
+  <div class="alert alert-warning">
+    This account is inactive — nothing new can be posted to it. Its history is unchanged.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Entries</span>
+    <span class="muted" style="font-size:.78rem">Newest first · running balance reads bottom-up</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Reference</th><th>Date</th><th>Description</th><th>Memo</th><th class="num">Change</th><th class="num">Balance</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="code-ref"><a href="{% url 'finance:transaction_detail' row.transaction.pk %}">{{ row.transaction.reference_no }}</a></td>
+            <td>{{ row.transaction.date|date:"d M Y" }}</td>
+            <td>
+              {{ row.transaction.description }}
+              {% if row.transaction.is_reversed %}<span class="pill pill-bad" style="margin-left:.4rem">Reversed</span>{% endif %}
+            </td>
+            <td class="muted">{{ row.line.memo|default:"—" }}</td>
+            <td class="num">
+              <span class="money {% if row.change > 0 %}pos{% else %}neg{% endif %}">
+                {% if row.change > 0 %}+{% endif %}৳{{ row.change|floatformat:2 }}
+              </span>
+            </td>
+            <td class="num money">৳{{ row.running_balance|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">
+            <div class="empty-state">
+              <div class="icon">📭</div>
+              <p>Nothing has touched this account yet.</p>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
