@@ -40,62 +40,64 @@
 
 <div class="card">
   {% if page_obj %}
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>#</th><th>Affiliate</th><th>Amount</th>
-        <th>Method & Account</th><th>Requested</th>
-        {% if tab == 'paid' %}<th>Transaction ID</th><th>Paid</th>
-        {% elif tab == 'rejected' %}<th>Reason</th>
-        {% endif %}
-        {% if tab != 'paid' and tab != 'rejected' %}<th>Actions</th>{% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for w in page_obj %}
-      <tr>
-        <td style="color:#9A9188;font-size:.75rem;">{{ w.pk }}</td>
-        <td>
-          <div style="font-weight:700;color:#1A1208;">{{ w.affiliate.full_name }}</div>
-          <div style="font-size:.72rem;color:#A07830;font-weight:600;">{{ w.affiliate.referral_code }}</div>
-          <div style="font-size:.7rem;color:#9A9188;">{{ w.affiliate.phone_number }}</div>
-        </td>
-        <td style="font-weight:700;color:#065F46;font-size:.95rem;">৳{{ w.amount|floatformat:0 }}</td>
-        <td>
-          <span class="pill pill-{{ w.payment_method }}">{{ w.get_payment_method_display }}</span>
-          <div style="font-size:.78rem;font-family:monospace;color:#5A5450;margin-top:.25rem;">{{ w.payment_account }}</div>
-        </td>
-        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ w.requested_at|date:"d M Y" }}</td>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Affiliate</th><th>Amount</th>
+          <th>Method & Account</th><th>Requested</th>
+          {% if tab == 'paid' %}<th>Transaction ID</th><th>Paid</th>
+          {% elif tab == 'rejected' %}<th>Reason</th>
+          {% endif %}
+          {% if tab != 'paid' and tab != 'rejected' %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in page_obj %}
+        <tr>
+          <td style="color:#9A9188;font-size:.75rem;">{{ w.pk }}</td>
+          <td>
+            <div style="font-weight:700;color:#1A1208;">{{ w.affiliate.full_name }}</div>
+            <div style="font-size:.72rem;color:#A07830;font-weight:600;">{{ w.affiliate.referral_code }}</div>
+            <div style="font-size:.7rem;color:#9A9188;">{{ w.affiliate.phone_number }}</div>
+          </td>
+          <td style="font-weight:700;color:#065F46;font-size:.95rem;">৳{{ w.amount|floatformat:0 }}</td>
+          <td>
+            <span class="pill pill-{{ w.payment_method }}">{{ w.get_payment_method_display }}</span>
+            <div style="font-size:.78rem;font-family:monospace;color:#5A5450;margin-top:.25rem;">{{ w.payment_account }}</div>
+          </td>
+          <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ w.requested_at|date:"d M Y" }}</td>
 
-        {% if tab == 'paid' %}
-        <td style="font-size:.78rem;font-family:monospace;color:#1D4ED8;">{{ w.transaction_id }}</td>
-        <td style="font-size:.75rem;color:#9A9188;">{{ w.processed_at|date:"d M Y" }}</td>
+          {% if tab == 'paid' %}
+          <td style="font-size:.78rem;font-family:monospace;color:#1D4ED8;">{{ w.transaction_id }}</td>
+          <td style="font-size:.75rem;color:#9A9188;">{{ w.processed_at|date:"d M Y" }}</td>
 
-        {% elif tab == 'rejected' %}
-        <td style="font-size:.78rem;color:#991B1B;">{{ w.rejection_reason|default:"—" }}</td>
+          {% elif tab == 'rejected' %}
+          <td style="font-size:.78rem;color:#991B1B;">{{ w.rejection_reason|default:"—" }}</td>
 
-        {% else %}
-        <td>
-          <div style="display:flex;flex-direction:column;gap:.35rem;">
-            {% if tab == 'pending' %}
-            <form method="post" action="{% url 'affiliate:withdrawal_action' w.pk %}">
-              {% csrf_token %}<input type="hidden" name="action" value="approve">
-              <button class="btn btn-approve" style="width:100%;">✓ Approve</button>
-            </form>
-            <button class="btn btn-reject" style="width:100%;" onclick="openRejectModal({{ w.pk }}, '{{ w.affiliate.full_name|escapejs }}')">✗ Reject</button>
+          {% else %}
+          <td>
+            <div style="display:flex;flex-direction:column;gap:.35rem;">
+              {% if tab == 'pending' %}
+              <form method="post" action="{% url 'affiliate:withdrawal_action' w.pk %}">
+                {% csrf_token %}<input type="hidden" name="action" value="approve">
+                <button class="btn btn-approve" style="width:100%;">✓ Approve</button>
+              </form>
+              <button class="btn btn-reject" style="width:100%;" onclick="openRejectModal({{ w.pk }}, '{{ w.affiliate.full_name|escapejs }}')">✗ Reject</button>
 
-            {% elif tab == 'approved' %}
-            <button class="btn btn-pay" style="width:100%;" onclick="openPayModal({{ w.pk }}, '{{ w.affiliate.full_name|escapejs }}', '{{ w.amount }}', '{{ w.get_payment_method_display }}', '{{ w.payment_account }}')">
-              💳 Mark Paid
-            </button>
-            {% endif %}
-          </div>
-        </td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+              {% elif tab == 'approved' %}
+              <button class="btn btn-pay" style="width:100%;" onclick="openPayModal({{ w.pk }}, '{{ w.affiliate.full_name|escapejs }}', '{{ w.amount }}', '{{ w.get_payment_method_display }}', '{{ w.payment_account }}')">
+                💳 Mark Paid
+              </button>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {% if page_obj.has_other_pages %}
   <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;">

@@ -172,51 +172,53 @@
     <span style="font-size:.72rem;color:#9A9188;">Ranked by earnings</span>
   </div>
   {% if top_affiliates %}
-  <table class="top-table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Affiliate</th>
-        <th>Clicks</th>
-        <th>Orders</th>
-        <th>Conversion</th>
-        <th>Earned (Period)</th>
-        <th>Total Earned</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in top_affiliates %}
-      <tr>
-        <td>
-          <span class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-other{% endif %}">
-            {{ forloop.counter }}
-          </span>
-        </td>
-        <td>
-          <div style="font-weight:700;color:var(--gold-d);">{{ row.affiliate.referral_code }}</div>
-          <div style="font-size:.75rem;color:#9A9188;">{{ row.affiliate.full_name }}</div>
-        </td>
-        <td style="font-weight:600;">{{ row.period_clicks }}</td>
-        <td style="font-weight:600;">{{ row.period_orders }}</td>
-        <td>
-          <span style="font-weight:700;{% if row.conversion_rate >= 5 %}color:#065F46;{% elif row.conversion_rate >= 2 %}color:#92600A;{% else %}color:#9A9188;{% endif %}">
-            {{ row.conversion_rate }}%
-          </span>
-        </td>
-        <td style="font-weight:700;color:var(--gold-d);">৳{{ row.period_earnings|floatformat:0 }}</td>
-        <td style="color:#5A5450;">৳{{ row.total_earnings|floatformat:0 }}</td>
-        <td>
-          {% if row.affiliate.is_fraud_flagged %}
-            <span style="font-size:.7rem;background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444;padding:.15rem .5rem;border-radius:4px;font-weight:700;">FLAGGED</span>
-          {% else %}
-            <span style="font-size:.7rem;background:rgba(16,185,129,.1);color:#065F46;border:1px solid #10B981;padding:.15rem .5rem;border-radius:4px;font-weight:700;">ACTIVE</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table class="top-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Affiliate</th>
+          <th>Clicks</th>
+          <th>Orders</th>
+          <th>Conversion</th>
+          <th>Earned (Period)</th>
+          <th>Total Earned</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in top_affiliates %}
+        <tr>
+          <td>
+            <span class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-other{% endif %}">
+              {{ forloop.counter }}
+            </span>
+          </td>
+          <td>
+            <div style="font-weight:700;color:var(--gold-d);">{{ row.affiliate.referral_code }}</div>
+            <div style="font-size:.75rem;color:#9A9188;">{{ row.affiliate.full_name }}</div>
+          </td>
+          <td style="font-weight:600;">{{ row.period_clicks }}</td>
+          <td style="font-weight:600;">{{ row.period_orders }}</td>
+          <td>
+            <span style="font-weight:700;{% if row.conversion_rate >= 5 %}color:#065F46;{% elif row.conversion_rate >= 2 %}color:#92600A;{% else %}color:#9A9188;{% endif %}">
+              {{ row.conversion_rate }}%
+            </span>
+          </td>
+          <td style="font-weight:700;color:var(--gold-d);">৳{{ row.period_earnings|floatformat:0 }}</td>
+          <td style="color:#5A5450;">৳{{ row.total_earnings|floatformat:0 }}</td>
+          <td>
+            {% if row.affiliate.is_fraud_flagged %}
+              <span style="font-size:.7rem;background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444;padding:.15rem .5rem;border-radius:4px;font-weight:700;">FLAGGED</span>
+            {% else %}
+              <span style="font-size:.7rem;background:rgba(16,185,129,.1);color:#065F46;border:1px solid #10B981;padding:.15rem .5rem;border-radius:4px;font-weight:700;">ACTIVE</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
   <div style="text-align:center;padding:3rem;color:#9A9188;">
     <div style="font-size:2rem;margin-bottom:.75rem;">📊</div>
@@ -232,31 +234,33 @@
     <div class="chart-title">⏳ Pending Withdrawal Requests</div>
     <a href="/admin/affiliate/withdrawalrequest/?status__exact=pending" style="font-size:.75rem;color:var(--gold-d);font-weight:600;">Manage in Admin →</a>
   </div>
-  <table class="top-table">
-    <thead>
-      <tr>
-        <th>Affiliate</th>
-        <th>Amount</th>
-        <th>Method</th>
-        <th>Account</th>
-        <th>Requested</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for w in pending_withdrawals %}
-      <tr>
-        <td>
-          <div style="font-weight:700;color:var(--gold-d);">{{ w.affiliate.referral_code }}</div>
-          <div style="font-size:.72rem;color:#9A9188;">{{ w.affiliate.full_name }}</div>
-        </td>
-        <td style="font-weight:700;color:#065F46;">৳{{ w.amount|floatformat:0 }}</td>
-        <td style="font-size:.82rem;">{{ w.get_payment_method_display }}</td>
-        <td style="font-family:monospace;font-size:.78rem;color:#5A5450;">{{ w.payment_account }}</td>
-        <td style="font-size:.75rem;color:#9A9188;">{{ w.requested_at|date:"d M Y" }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table class="top-table">
+      <thead>
+        <tr>
+          <th>Affiliate</th>
+          <th>Amount</th>
+          <th>Method</th>
+          <th>Account</th>
+          <th>Requested</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in pending_withdrawals %}
+        <tr>
+          <td>
+            <div style="font-weight:700;color:var(--gold-d);">{{ w.affiliate.referral_code }}</div>
+            <div style="font-size:.72rem;color:#9A9188;">{{ w.affiliate.full_name }}</div>
+          </td>
+          <td style="font-weight:700;color:#065F46;">৳{{ w.amount|floatformat:0 }}</td>
+          <td style="font-size:.82rem;">{{ w.get_payment_method_display }}</td>
+          <td style="font-family:monospace;font-size:.78rem;color:#5A5450;">{{ w.payment_account }}</td>
+          <td style="font-size:.75rem;color:#9A9188;">{{ w.requested_at|date:"d M Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endif %}
 

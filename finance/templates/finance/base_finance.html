@@ -149,13 +149,76 @@
     .line-warn{font-size:.71rem;color:#991B1B;font-weight:600;margin-top:.25rem;display:none}
     .line-warn.show{display:block}
 
-    @media(max-width:768px){.sidebar{display:none}.admin-main{padding:1rem}}
+    /* ── Mobile navigation ──
+       Below 768px the sidebar becomes an off-canvas drawer opened by the
+       hamburger. It used to be `display:none`, which left the phone with no
+       navigation at all. */
+    .nav-toggle{display:none;background:transparent;border:1px solid var(--black-b);border-radius:8px;width:40px;height:40px;align-items:center;justify-content:center;cursor:pointer;color:var(--text-m);flex-shrink:0;transition:border-color .18s,color .18s;padding:0}
+    .nav-toggle:hover,.nav-toggle:focus-visible{border-color:var(--gold-d);color:var(--gold-l);outline:none}
+    .nav-toggle .bars{display:block;position:relative;width:17px;height:2px;background:currentColor;border-radius:2px;transition:background .18s}
+    .nav-toggle .bars::before,.nav-toggle .bars::after{content:'';position:absolute;left:0;width:17px;height:2px;background:currentColor;border-radius:2px;transition:transform .22s}
+    .nav-toggle .bars::before{top:-6px}
+    .nav-toggle .bars::after{top:6px}
+    body.nav-open .nav-toggle .bars{background:transparent}
+    body.nav-open .nav-toggle .bars::before{transform:translateY(6px) rotate(45deg)}
+    body.nav-open .nav-toggle .bars::after{transform:translateY(-6px) rotate(-45deg)}
+
+    .nav-scrim{position:fixed;inset:0;background:rgba(10,10,10,.6);opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s;z-index:290}
+    body.nav-open .nav-scrim{opacity:1;visibility:visible}
+
+    .drawer-head{display:none}
+    .drawer-only{display:none}
+
+    @media(max-width:768px){
+      .nav-toggle{display:inline-flex}
+      .admin-header{padding:0 .85rem;gap:.7rem}
+      .admin-brand{font-size:.95rem}
+      .admin-header .admin-header-right{display:none}
+      .admin-main{padding:1rem .9rem 2rem}
+
+      .sidebar{position:fixed;top:0;left:0;bottom:0;width:min(84vw,300px);padding:0 0 2rem;z-index:300;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:0 0 40px rgba(0,0,0,.55);border-right:1px solid var(--black-b)}
+      body.nav-open .sidebar{transform:none}
+      body.nav-open{overflow:hidden}
+
+      .drawer-head{display:flex;align-items:center;gap:.6rem;height:60px;padding:0 .9rem;position:sticky;top:0;background:var(--black-s);border-bottom:1px solid var(--black-b);z-index:2}
+      .drawer-head .drawer-title{font-family:'Cinzel',serif;font-size:.95rem;font-weight:700;color:var(--gold)}
+      .drawer-close{margin-left:auto;background:transparent;border:none;color:var(--text-m);font-size:1.5rem;line-height:1;cursor:pointer;padding:.25rem .4rem;border-radius:6px}
+      .drawer-close:hover{color:var(--gold-l)}
+      .drawer-only{display:block}
+
+      /* Touch-sized rows */
+      .sidebar-label{padding:.5rem 1.1rem;margin-top:1rem}
+      .sidebar-link{padding:.75rem 1.1rem;font-size:.9rem;gap:.8rem}
+      .sidebar-link .icon{font-size:1.05rem;width:20px}
+
+      /* Content density */
+      .page-head{margin-bottom:1.1rem}
+      .page-head h1{font-size:1.1rem}
+      .stat-row{grid-template-columns:repeat(2,1fr);gap:.7rem;margin-bottom:1.1rem}
+      .stat-box{padding:.85rem .9rem}
+      .stat-num{font-size:1.15rem}
+      .card-head,.card-body{padding-left:.95rem;padding-right:.95rem}
+      .data-table th,.data-table td{padding-left:.7rem;padding-right:.7rem}
+      .filter-bar{padding:.85rem .9rem;gap:.6rem}
+      .filter-bar .form-field{min-width:0;flex:1 1 100%}
+      .form-grid{max-width:none}
+      .form-actions .btn{flex:1 1 auto;justify-content:center}
+    }
+    /* Very small phones only: 2-up stat cards still fit at 360px+ */
+    @media(max-width:359px){
+      .admin-brand span{display:none}
+      .stat-row{grid-template-columns:1fr}
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
 
 <header class="admin-header">
+  <button type="button" class="nav-toggle" id="navToggle"
+          aria-label="Menu" aria-controls="sidebar" aria-expanded="false">
+    <span class="bars"></span>
+  </button>
   <a href="{% url 'finance:dashboard' %}" class="admin-brand">
     <img src="{% static 'logo.png' %}" alt="AlphaCue" style="height:32px;width:32px;object-fit:contain;">
     <span>AlphaCue <span style="color:var(--text);">Finance</span></span>
@@ -172,8 +235,16 @@
   </div>
 </header>
 
+<div class="nav-scrim" id="navScrim"></div>
+
 <div class="admin-body">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
+    <div class="drawer-head">
+      <img src="{% static 'logo.png' %}" alt="" style="height:26px;width:26px;object-fit:contain;">
+      <span class="drawer-title">Finance</span>
+      <button type="button" class="drawer-close" id="navClose" aria-label="Close menu">&times;</button>
+    </div>
+
     {% with url_name=request.resolver_match.url_name %}
     <div class="sidebar-label">Overview</div>
     <a href="{% url 'finance:dashboard' %}" class="sidebar-link {% if url_name == 'dashboard' %}active{% endif %}">
@@ -253,6 +324,21 @@
     </a>
 
     {% endwith %}
+
+    <!-- Header links live here on mobile, where the header bar has no room -->
+    <div class="drawer-only">
+      <div class="sidebar-label">Switch</div>
+      <a href="{% url 'store:homepage' %}" class="sidebar-link"><span class="icon">🏬</span> Store</a>
+      <a href="{% url 'store:manage_order_list' %}" class="sidebar-link"><span class="icon">📮</span> Orders</a>
+      <a href="{% url 'affiliate:admin_hub' %}" class="sidebar-link"><span class="icon">🤝</span> Affiliate Admin</a>
+      <a href="/admin/" class="sidebar-link"><span class="icon">🛠️</span> Django Admin</a>
+      <form method="post" action="/accounts/logout/">
+        {% csrf_token %}
+        <button type="submit" class="sidebar-link" style="width:100%;background:none;border:none;cursor:pointer;font-family:inherit;text-align:left;">
+          <span class="icon">🚪</span> Logout
+        </button>
+      </form>
+    </div>
   </aside>
 
   <main class="admin-main">
@@ -268,6 +354,38 @@
   </main>
 </div>
 
+<script>
+/* Off-canvas sidebar drawer (mobile only — the CSS keeps it docked ≥769px). */
+(function () {
+  var body    = document.body,
+      sidebar = document.getElementById('sidebar'),
+      toggle  = document.getElementById('navToggle'),
+      scrim   = document.getElementById('navScrim'),
+      closeBt = document.getElementById('navClose');
+  if (!sidebar || !toggle) return;
+
+  function open() {
+    body.classList.add('nav-open');
+    toggle.setAttribute('aria-expanded', 'true');
+    // The finance menu is long; bring the current page into view.
+    var active = sidebar.querySelector('.sidebar-link.active');
+    if (active) sidebar.scrollTop = Math.max(0, active.offsetTop - 140);
+  }
+  function close() {
+    body.classList.remove('nav-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  toggle.addEventListener('click', function () {
+    body.classList.contains('nav-open') ? close() : open();
+  });
+  if (scrim)   scrim.addEventListener('click', close);
+  if (closeBt) closeBt.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  window.addEventListener('resize', function () { if (window.innerWidth > 768) close(); });
+  sidebar.addEventListener('click', function (e) { if (e.target.closest('a')) close(); });
+})();
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

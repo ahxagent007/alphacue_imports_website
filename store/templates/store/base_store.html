@@ -126,16 +126,64 @@
     .alert-danger{background:rgba(139,32,32,.07);border-color:#8B2020;color:#8B2020}
     .alert-warning{background:rgba(201,168,76,.08);border-color:var(--gold-d);color:#7A5C1A}
 
+    /* ── Mobile navigation ── */
+    .nav-toggle{display:none;background:transparent;border:1px solid var(--black-e);border-radius:8px;width:40px;height:40px;align-items:center;justify-content:center;cursor:pointer;color:var(--text-m);flex-shrink:0;transition:border-color .18s,color .18s;padding:0}
+    .nav-toggle:hover,.nav-toggle:focus-visible{border-color:var(--gold-d);color:var(--gold-l);outline:none}
+    .nav-toggle .bars{display:block;position:relative;width:17px;height:2px;background:currentColor;border-radius:2px;transition:background .18s}
+    .nav-toggle .bars::before,.nav-toggle .bars::after{content:'';position:absolute;left:0;width:17px;height:2px;background:currentColor;border-radius:2px;transition:transform .22s}
+    .nav-toggle .bars::before{top:-6px}
+    .nav-toggle .bars::after{top:6px}
+    body.nav-open .nav-toggle .bars{background:transparent}
+    body.nav-open .nav-toggle .bars::before{transform:translateY(6px) rotate(45deg)}
+    body.nav-open .nav-toggle .bars::after{transform:translateY(-6px) rotate(-45deg)}
+
+    .nav-scrim{position:fixed;inset:0;background:rgba(10,10,10,.6);opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s;z-index:290}
+    body.nav-open .nav-scrim{opacity:1;visibility:visible}
+
+    .nav-drawer{position:fixed;top:0;left:0;bottom:0;width:min(84vw,320px);background:var(--black-s);border-right:1px solid var(--black-b);z-index:300;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:0 0 40px rgba(0,0,0,.55);padding-bottom:2rem;visibility:hidden}
+    body.nav-open .nav-drawer{transform:none;visibility:visible}
+    .drawer-head{display:flex;align-items:center;gap:.6rem;height:68px;padding:0 1rem;position:sticky;top:0;background:var(--black-s);border-bottom:1px solid var(--black-b);z-index:2}
+    .drawer-title{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold)}
+    .drawer-close{margin-left:auto;background:transparent;border:none;color:var(--text-m);font-size:1.6rem;line-height:1;cursor:pointer;padding:.25rem .4rem;border-radius:6px}
+    .drawer-close:hover{color:var(--gold-l)}
+    .drawer-label{font-size:.65rem;font-weight:700;color:var(--text-d);letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.1rem;margin-top:1rem}
+    .drawer-link{display:flex;align-items:center;gap:.75rem;padding:.8rem 1.1rem;font-size:.9rem;font-weight:500;color:var(--text-m);transition:background .15s,color .15s;width:100%;background:none;border:none;font-family:'Inter',sans-serif;text-align:left;cursor:pointer}
+    .drawer-link:hover{background:var(--black-b);color:var(--text)}
+    .drawer-link.active{background:var(--gold-dim);color:var(--gold-l);box-shadow:inset 3px 0 0 var(--gold)}
+    .drawer-link .icon{width:20px;text-align:center;flex-shrink:0}
+    .drawer-link.accent{color:var(--gold-l)}
+
+    .mobile-search{display:none;padding:0 1rem .75rem;background:var(--black-s)}
+    .mobile-search form{position:relative}
+    .mobile-search input{width:100%;background:var(--black-c);border:1px solid var(--black-e);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:.9rem;padding:.6rem 1rem .6rem 2.4rem;outline:none}
+    .mobile-search input:focus{border-color:var(--gold-d)}
+    .mobile-search input::placeholder{color:var(--text-d)}
+    .mobile-search .nav-search-icon{left:.7rem}
+
     /* ── Responsive ── */
     @media(max-width:768px){
+      .nav-toggle{display:inline-flex}
       .nav-search{display:none}
-      .footer-inner{grid-template-columns:1fr}
+      .mobile-search{display:block}
+      .topbar{font-size:.7rem;padding:.35rem .75rem;line-height:1.4}
+      .nav-inner{padding:0 1rem;height:60px;gap:.75rem}
+      .nav-brand img{height:32px!important;width:32px!important}
+      .nav-actions{gap:.5rem}
+      /* !important: the logout form carries an inline display:inline */
+      .nav-actions > *:not(.cart-btn){display:none!important}
+      .cart-btn{padding:.5rem .75rem}
+      body.nav-open{overflow:hidden}
+      .footer-inner{grid-template-columns:1fr;gap:2rem}
+      .page-content{padding:1.5rem 0 2.5rem}
+      .container{padding:0 1rem}
       .product-grid{grid-template-columns:repeat(2,1fr);gap:.9rem}
     }
     @media(max-width:480px){
       .product-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
       .pcard-body{padding:.7rem}
       .pcard-footer{padding:0 .7rem .7rem}
+      .cart-btn .cart-label{display:none}
+      .cart-btn{padding:.5rem .65rem;gap:.4rem}
     }
   </style>
   {% block extra_head %}{% endblock %}
@@ -156,6 +204,10 @@
 
 <nav class="navbar">
   <div class="nav-inner">
+    <button type="button" class="nav-toggle" id="navToggle"
+            aria-label="Menu" aria-controls="navDrawer" aria-expanded="false">
+      <span class="bars"></span>
+    </button>
     <a href="{% url 'store:homepage' %}" class="nav-brand" style="display:flex;align-items:center;gap:.6rem;"><img src="{% static 'logo.png' %}" alt="AlphaCue Imports" style="height:38px;width:38px;object-fit:contain;"><span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold);">AlphaCue <span style="color:var(--text);">Imports</span></span></a>
 
     <form class="nav-search" method="get" action="{% url 'store:search' %}" role="search">
@@ -185,12 +237,69 @@
       {% endif %}
 
       <a href="{% url 'store:cart' %}" class="cart-btn">
-        🛒 Cart
+        🛒 <span class="cart-label">Cart</span>
         <span class="cart-count" id="cart-count">{{ cart|length }}</span>
       </a>
     </div>
   </div>
+
+  <!-- Search gets its own row on phones; the inline one has no room there -->
+  <div class="mobile-search">
+    <form method="get" action="{% url 'store:search' %}" role="search">
+      <span class="nav-search-icon">🔍</span>
+      <input type="text" name="q" placeholder="Search products..."
+             value="{% if request.resolver_match.url_name == 'search' %}{{ request.GET.q|default:'' }}{% endif %}"
+             autocomplete="off">
+    </form>
+  </div>
 </nav>
+
+<div class="nav-scrim" id="navScrim"></div>
+
+<aside class="nav-drawer" id="navDrawer">
+  <div class="drawer-head">
+    <img src="{% static 'logo.png' %}" alt="" style="height:30px;width:30px;object-fit:contain;">
+    <span class="drawer-title">AlphaCue</span>
+    <button type="button" class="drawer-close" id="navClose" aria-label="Close menu">&times;</button>
+  </div>
+
+  <div class="drawer-label">Shop</div>
+  <a href="{% url 'store:product_list' %}"
+     class="drawer-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
+    <span class="icon">🛍️</span> All Products
+  </a>
+  {% for cat in categories %}
+  <a href="{% url 'store:category_detail' cat.slug %}"
+     class="drawer-link {% if request.resolver_match.kwargs.slug == cat.slug %}active{% endif %}">
+    <span class="icon">▸</span> {{ cat.name }}
+  </a>
+  {% endfor %}
+
+  <div class="drawer-label">Account</div>
+  <a href="{% url 'store:cart' %}" class="drawer-link"><span class="icon">🛒</span> Cart</a>
+  <a href="{% url 'store:order_track' %}" class="drawer-link"><span class="icon">📦</span> Track Order</a>
+  {% if user.is_authenticated %}
+    {% if user.affiliate_profile.status == 'approved' %}
+      <a href="{% url 'affiliate:dashboard' %}" class="drawer-link accent"><span class="icon">📊</span> Affiliate Dashboard</a>
+    {% else %}
+      <a href="{% url 'affiliate:affiliate_apply' %}" class="drawer-link accent"><span class="icon">💰</span> Earn with Us</a>
+    {% endif %}
+    {% if user.is_staff %}
+      <div class="drawer-label">Staff</div>
+      <a href="{% url 'store:manage_order_list' %}" class="drawer-link accent"><span class="icon">📮</span> Orders</a>
+      <a href="{% url 'finance:dashboard' %}" class="drawer-link accent"><span class="icon">💼</span> Finance</a>
+      <a href="{% url 'affiliate:admin_hub' %}" class="drawer-link accent"><span class="icon">🤝</span> Affiliate Admin</a>
+    {% endif %}
+    <form method="post" action="/accounts/logout/">
+      {% csrf_token %}
+      <button type="submit" class="drawer-link"><span class="icon">🚪</span> Logout</button>
+    </form>
+  {% else %}
+    <a href="/accounts/login/" class="drawer-link"><span class="icon">🔑</span> Login</a>
+    <a href="{% url 'affiliate:register' %}" class="drawer-link"><span class="icon">✍️</span> Register</a>
+    <a href="{% url 'affiliate:affiliate_apply' %}" class="drawer-link accent"><span class="icon">💰</span> Earn with Us</a>
+  {% endif %}
+</aside>
 
 <div class="cat-strip">
   <div class="cat-strip-inner">
@@ -268,6 +377,34 @@ function updateCartCount(count) {
   const el = document.getElementById('cart-count');
   if (el) el.textContent = count;
 }
+
+/* Off-canvas menu drawer (mobile only — the CSS keeps it off-screen ≥769px). */
+(function () {
+  var body    = document.body,
+      drawer  = document.getElementById('navDrawer'),
+      toggle  = document.getElementById('navToggle'),
+      scrim   = document.getElementById('navScrim'),
+      closeBt = document.getElementById('navClose');
+  if (!drawer || !toggle) return;
+
+  function open() {
+    body.classList.add('nav-open');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    body.classList.remove('nav-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  toggle.addEventListener('click', function () {
+    body.classList.contains('nav-open') ? close() : open();
+  });
+  if (scrim)   scrim.addEventListener('click', close);
+  if (closeBt) closeBt.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  window.addEventListener('resize', function () { if (window.innerWidth > 768) close(); });
+  drawer.addEventListener('click', function (e) { if (e.target.closest('a')) close(); });
+})();
 </script>
 {% block extra_js %}{% endblock %}
 </body>
