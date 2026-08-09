@@ -111,4 +111,6 @@
     </table>
   </div>
 </div>
+
+{% include 'finance/partials/danger_zone.html' with title='Remove this client' action=remove_url label='Remove client' blocked=cannot_delete confirm='Remove this client?' explain='A client who never traded can be removed outright. Once they have been invoiced or paid, the record stays — cancel the individual invoices instead.' %}
 {% endblock %}

@@ -939,6 +939,25 @@ class Purchase(models.Model):
                   "small unknowns.",
     )
 
+    # ── Paying the supplier ───────────────────────────────────────────────
+    # A purchase creates a debt to the supplier; this settles some or all of
+    # it in the same step, which is how importing actually works — you pay
+    # before the goods ship. Leave it blank to pay later from Payments.
+    paid_from = models.ForeignKey(
+        Account, null=True, blank=True,
+        on_delete=models.PROTECT, related_name='purchases_paid',
+        help_text="Which account the money came out of. Leave blank to pay later.",
+    )
+    amount_paid = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0.00'),
+        help_text="How much you paid the supplier now. Can be a part payment.",
+    )
+    payment = models.ForeignKey(
+        'Payment', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='purchases',
+        help_text="The payment record created for this purchase, if any.",
+    )
+
     status = models.CharField(
         max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
     )
@@ -1071,6 +1090,23 @@ class Purchase(models.Model):
     @property
     def total_quantity(self):
         return sum((item.quantity for item in self.items.all()), 0)
+
+    @property
+    def settled(self):
+        """What has actually been paid against this purchase."""
+        return self.payment.amount if self.payment_id else ZERO
+
+    @property
+    def still_owed(self):
+        """
+        What is left owing on this purchase.
+
+        Uses the landed total once the shipment has been received, and the
+        goods value before that — the freight is not known until it lands, so
+        quoting a total that includes it would be a guess.
+        """
+        basis = self.landed_total_bdt if self.is_received else self.goods_total_bdt
+        return basis - self.settled
 
 
 class PurchaseItem(models.Model):
@@ -1465,7 +1501,13 @@ class Investor(models.Model):
 
     @property
     def profit_share_total(self):
-        return sum((share.amount for share in self.profit_shares.all()), ZERO)
+        """Excludes distributions that were undone — their entry is reversed."""
+        return sum(
+            (share.amount for share in self.profit_shares.select_related(
+                'distribution__transaction')
+             if not share.distribution.is_reversed),
+            ZERO,
+        )
 
 
 class ProfitDistribution(models.Model):

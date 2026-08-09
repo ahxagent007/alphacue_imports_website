@@ -41,13 +41,17 @@ from .models import (
 from .services import (
     account_ledger, accounts_with_balances, adjust_stock, ageing_report,
     auto_allocate, build_schedule, cancel_invoice, cancel_purchase,
-    cash_on_hand, consume_stock, create_invoice_from_order, create_loan,
+    cancel_loan, cash_on_hand, consume_stock, create_invoice_from_order,
+    create_loan, delete_draft_invoice, delete_draft_purchase, delete_investor,
+    delete_party, reverse_distribution, reverse_investor_movement,
+    reverse_loan_payment, reverse_stock_movement,
     current_unit_cost, daybook, distribute_profit, investor_statement,
     loan_summary, ownership_split, record_capital, record_drawing,
     record_loan_payment,
     get_opening_balance_account, has_opening_balance, invoice_amount_paid,
     issue_invoice, low_stock, margin_report, mark_purchase_ordered, money,
     next_invoice_number, next_purchase_number, open_invoices_for,
+    oversold_variants,
     party_statement, period_profit, post_expense, post_opening_balance,
     post_simple, post_transaction, post_transfer, purchase_batches,
     receivables_summary, receive_opening_stock, receive_purchase,
@@ -4541,6 +4545,839 @@ class ViewHardeningTests(InvoiceTestCase):
         response = self.client.get('/manage/finance/parties/')
         self.assertEqual(response.status_code, 200)
         self.assertIn('page_obj', response.context)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class AddMoreRowsTests(InvoiceTestCase):
+    """
+    The forms render 4 spare rows. The "add another line" button raises
+    TOTAL_FORMS client-side, so the server has to accept more than that.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from store.models import Category, Product, ProductVariant
+
+        User.objects.create_user('owner', password='pw12345!', is_staff=True)
+        self.client.login(username='owner', password='pw12345!')
+
+        category = Category.objects.create(name='Cables')
+        product = Product.objects.create(category=category, name='Cable')
+        self.variant = ProductVariant.objects.create(
+            product=product, name='Black', price=Decimal('100.00'),
+            stock=500, sku='AC-CBL')
+        self.supplier = Party.objects.create(
+            name='Supplier Co', party_type=Party.TYPE_SUPPLIER)
+
+    def test_an_invoice_accepts_ten_lines(self):
+        rows = 10
+        data = {
+            'party': self.client_party.pk,
+            'issue_date': TODAY.isoformat(),
+            'payment_terms_days': '0',
+            'discount': '0',
+            'delivery_charge': '0',
+            'notes': '',
+            'items-TOTAL_FORMS': str(rows),
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+        }
+        for index in range(rows):
+            data.update({
+                f'items-{index}-variant': self.variant.pk,
+                f'items-{index}-description': f'Line {index + 1}',
+                f'items-{index}-sku': 'AC-CBL',
+                f'items-{index}-unit_price': '100.00',
+                f'items-{index}-quantity': '1',
+                f'items-{index}-discount': '0',
+            })
+
+        response = self.client.post('/manage/finance/invoices/new/', data)
+        self.assertEqual(response.status_code, 302)
+
+        invoice = Invoice.objects.latest('id')
+        self.assertEqual(invoice.items.count(), rows)
+        self.assertEqual(invoice.subtotal, Decimal('1000.00'))
+
+    def test_a_purchase_accepts_eight_products(self):
+        rows = 8
+        data = {
+            'purchase_type': Purchase.TYPE_IMPORT,
+            'supplier': self.supplier.pk,
+            'purchase_date': TODAY.isoformat(),
+            'fx_rate_rmb_to_bdt': '17.5000',
+            'default_per_kg_charge_bdt': '100.00',
+            'billed_weight_kg': '0.000',
+            'extra_cost_bdt': '0.00',
+            'correction_percent': '0.00',
+            'notes': '',
+            'items-TOTAL_FORMS': str(rows),
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+        }
+        for index in range(rows):
+            data.update({
+                f'items-{index}-variant': self.variant.pk,
+                f'items-{index}-quantity': '1',
+                f'items-{index}-unit_price_rmb': '10.00',
+                f'items-{index}-domestic_shipping_rmb': '0.00',
+                f'items-{index}-unit_cost_bdt': '0.00',
+                f'items-{index}-local_transport_bdt': '0.00',
+                f'items-{index}-entered_weight_kg': '0.000',
+                f'items-{index}-per_kg_charge_bdt': '',
+            })
+
+        response = self.client.post('/manage/finance/purchases/new/', data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Purchase.objects.latest('id').items.count(), rows)
+
+    def test_blank_added_rows_are_still_skipped(self):
+        """Clicking add a few times too many must not create empty lines."""
+        rows = 9
+        data = {
+            'party': self.client_party.pk,
+            'issue_date': TODAY.isoformat(),
+            'payment_terms_days': '0',
+            'discount': '0',
+            'delivery_charge': '0',
+            'notes': '',
+            'items-TOTAL_FORMS': str(rows),
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+        }
+        for index in range(rows):
+            filled = index < 2
+            data.update({
+                f'items-{index}-variant': self.variant.pk if filled else '',
+                f'items-{index}-description': f'Line {index}' if filled else '',
+                f'items-{index}-sku': '',
+                f'items-{index}-unit_price': '100.00' if filled else '',
+                f'items-{index}-quantity': '1' if filled else '',
+                f'items-{index}-discount': '',
+            })
+
+        response = self.client.post('/manage/finance/invoices/new/', data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Invoice.objects.latest('id').items.count(), 2)
+
+    def test_both_forms_render_the_add_row_machinery(self):
+        for url in ['/manage/finance/invoices/new/',
+                    '/manage/finance/purchases/new/']:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, 'data-add-row')
+                self.assertContains(response, 'data-formset-template')
+                self.assertContains(response, 'data-formset-body')
+                self.assertContains(response, '__prefix__')
+
+    def test_the_template_row_carries_the_picker_markup(self):
+        response = self.client.get('/manage/finance/invoices/new/')
+        body = response.content.decode()
+
+        template_start = body.index('data-formset-template')
+        template_html = body[template_start:body.index('</template>', template_start)]
+
+        self.assertIn('product-search', template_html)
+        self.assertIn('items-__prefix__-variant', template_html)
+        self.assertIn('items-__prefix__-quantity', template_html)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class InvoiceStockTests(InvoiceTestCase):
+    """
+    Issuing an invoice takes the goods out of stock, and is allowed to drive the
+    count negative — that is the signal the product was never received.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from store.models import Category, Product, ProductVariant
+
+        User.objects.create_user('owner', password='pw12345!', is_staff=True)
+        self.client.login(username='owner', password='pw12345!')
+
+        category = Category.objects.create(name='Cables')
+        product = Product.objects.create(category=category, name='Cable')
+        self.stocked = ProductVariant.objects.create(
+            product=product, name='Black', price=Decimal('450.00'), sku='AC-BLK')
+        self.never_received = ProductVariant.objects.create(
+            product=product, name='White', price=Decimal('450.00'), sku='AC-WHT')
+
+        receive_opening_stock(variant=self.stocked, quantity=10,
+                              unit_cost=Decimal('100.00'), date=LAST_MONTH)
+
+    def _invoice_with(self, variant, qty):
+        invoice = Invoice.objects.create(party=self.client_party, issue_date=TODAY)
+        InvoiceItem.objects.create(
+            invoice=invoice, variant=variant, description=str(variant),
+            sku=variant.sku, unit_price=Decimal('450.00'), quantity=qty,
+        )
+        return invoice
+
+    def test_issuing_an_invoice_takes_the_stock(self):
+        issue_invoice(self._invoice_with(self.stocked, 3))
+        self.assertEqual(variant_stock(self.stocked), 7)
+
+    def test_the_cost_of_those_units_is_posted(self):
+        issue_invoice(self._invoice_with(self.stocked, 3))
+        self.assertEqual(Account.objects.get(code='5010').balance(), Decimal('300.00'))
+
+    def test_selling_what_was_never_received_goes_negative(self):
+        issue_invoice(self._invoice_with(self.never_received, 4))
+        self.assertEqual(variant_stock(self.never_received), -4)
+
+    def test_the_shortfall_is_explained_on_the_movement(self):
+        issue_invoice(self._invoice_with(self.never_received, 4))
+
+        movement = StockMovement.objects.get(variant=self.never_received)
+        self.assertIn('never have been received', movement.note)
+        self.assertIn('0 on hand', movement.note)
+
+    def test_overselling_partly_stocked_goods_goes_negative(self):
+        issue_invoice(self._invoice_with(self.stocked, 15))
+        self.assertEqual(variant_stock(self.stocked), -5)
+
+    def test_the_oversold_report_lists_them(self):
+        issue_invoice(self._invoice_with(self.never_received, 4))
+
+        rows = oversold_variants()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['variant'], self.never_received)
+        self.assertEqual(rows[0]['quantity'], -4)
+
+    def test_a_healthy_catalogue_reports_nothing_oversold(self):
+        issue_invoice(self._invoice_with(self.stocked, 3))
+        self.assertEqual(oversold_variants(), [])
+
+    def test_the_storefront_figure_never_goes_negative(self):
+        """
+        `ProductVariant.stock` drives the cart and the product page, where a
+        negative would produce a negative cart quantity. It stays clamped; the
+        true figure lives in the movement history.
+        """
+        issue_invoice(self._invoice_with(self.never_received, 4))
+
+        self.never_received.refresh_from_db()
+        self.assertEqual(self.never_received.stock, 0)
+        self.assertEqual(variant_stock(self.never_received), -4)
+
+    def test_a_freehand_line_touches_no_stock(self):
+        invoice = Invoice.objects.create(party=self.client_party, issue_date=TODAY)
+        InvoiceItem.objects.create(
+            invoice=invoice, description='Repair labour',
+            unit_price=Decimal('500.00'), quantity=1,
+        )
+        issue_invoice(invoice)
+        self.assertEqual(StockMovement.objects.filter(
+            reason=StockMovement.REASON_SALE).count(), 0)
+
+    def test_an_invoice_from_a_website_order_does_not_double_count(self):
+        """Checkout already took that stock — taking it again would halve it."""
+        from store.checkout_views import _consume_stock_for_order
+        from store.models import Order, OrderItem
+
+        order = Order.objects.create(
+            customer_name='Web Buyer', customer_phone='0171', address_line='x',
+            city='Dhaka', subtotal=Decimal('900'), delivery_fee=Decimal('0'),
+            grand_total=Decimal('900'))
+        OrderItem.objects.create(
+            order=order, variant=self.stocked, product_name='Cable',
+            variant_name='Black', sku='AC-BLK',
+            unit_price=Decimal('450.00'), quantity=2)
+
+        _consume_stock_for_order(order, self.stocked, 2)
+        self.assertEqual(variant_stock(self.stocked), 8)
+
+        issue_invoice(create_invoice_from_order(order))
+        self.assertEqual(variant_stock(self.stocked), 8)
+
+    def test_cancelling_an_invoice_puts_the_stock_back(self):
+        invoice = issue_invoice(self._invoice_with(self.stocked, 3))
+        self.assertEqual(variant_stock(self.stocked), 7)
+
+        cancel_invoice(invoice, reason='Client changed their mind')
+        self.assertEqual(variant_stock(self.stocked), 10)
+
+    def test_cancelling_clears_a_negative_position(self):
+        invoice = issue_invoice(self._invoice_with(self.never_received, 4))
+        self.assertEqual(variant_stock(self.never_received), -4)
+
+        cancel_invoice(invoice, reason='Raised in error')
+        self.assertEqual(variant_stock(self.never_received), 0)
+        self.assertEqual(oversold_variants(), [])
+
+    def test_cancelling_a_draft_touches_no_stock(self):
+        invoice = self._invoice_with(self.stocked, 3)
+        cancel_invoice(invoice, reason='Not needed')
+        self.assertEqual(variant_stock(self.stocked), 10)
+
+    def test_the_ledger_balances_through_all_of_it(self):
+        issue_invoice(self._invoice_with(self.stocked, 3))
+        invoice = issue_invoice(self._invoice_with(self.never_received, 4))
+        cancel_invoice(invoice, reason='Raised in error')
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_the_dashboard_warns_about_oversold_products(self):
+        issue_invoice(self._invoice_with(self.never_received, 4))
+        response = self.client.get('/manage/finance/')
+        self.assertContains(response, 'sold more than was ever received')
+
+    def test_the_stock_page_lists_them(self):
+        issue_invoice(self._invoice_with(self.never_received, 4))
+        response = self.client.get('/manage/finance/stock/')
+        self.assertContains(response, 'Sold but never received')
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class ProductOptionsAddRowTests(TestCase):
+
+    def setUp(self):
+        from django.core.management import call_command
+        from io import StringIO
+        from store.models import Category
+
+        call_command('seed_chart_of_accounts', stdout=StringIO())
+        User.objects.create_user('owner', password='pw12345!', is_staff=True)
+        self.client.login(username='owner', password='pw12345!')
+        self.category = Category.objects.create(name='Cables')
+
+    def test_the_product_form_renders_the_add_row_machinery(self):
+        response = self.client.get('/manage/finance/products/new/')
+        self.assertContains(response, 'data-add-row')
+        self.assertContains(response, 'data-formset-template')
+        self.assertContains(response, 'variants-__prefix__-name')
+
+    def test_a_product_accepts_six_options(self):
+        from store.models import Product
+
+        rows = 6
+        data = {
+            'name': 'Many Options Cable',
+            'category': self.category.pk,
+            'sku': '',
+            'short_description': '',
+            'is_active': 'on',
+            'variants-TOTAL_FORMS': str(rows),
+            'variants-INITIAL_FORMS': '0',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+        }
+        for index in range(rows):
+            data.update({
+                f'variants-{index}-name': f'Colour {index}',
+                f'variants-{index}-sku': '',
+                f'variants-{index}-price': '650.00',
+                f'variants-{index}-compare_price': '',
+                f'variants-{index}-track_stock': 'on',
+                f'variants-{index}-is_active': 'on',
+            })
+
+        response = self.client.post('/manage/finance/products/new/', data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Product.objects.get(name='Many Options Cable').variants.count(), rows)
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class PurchasePaymentTests(PurchaseTestCase):
+    """Paying the supplier as part of entering the purchase."""
+
+    def setUp(self):
+        super().setUp()
+        User.objects.create_user('owner', password='pw12345!', is_staff=True)
+        self.client.login(username='owner', password='pw12345!')
+        post_opening_balance(account=self.cash, date=LAST_MONTH,
+                             amount=Decimal('500000.00'))
+
+    def _purchase(self, paid_from=None, amount_paid='0.00'):
+        purchase = self.make_import(
+            fx='17.50', per_kg='100.00', billed_weight='10.000',
+            lines=[{'variant': self.variant_a, 'qty': 10, 'rmb': '50.00',
+                    'shipping_rmb': '30.00', 'weight': '10.000'}],
+        )
+        purchase.paid_from = paid_from
+        purchase.amount_paid = Decimal(amount_paid)
+        purchase.save(update_fields=['paid_from', 'amount_paid'])
+        return purchase
+
+    def test_confirming_an_order_pays_the_supplier(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='9275.00')
+        mark_purchase_ordered(purchase)
+
+        self.assertIsNotNone(purchase.payment_id)
+        self.assertEqual(self.cash.balance(), Decimal('490725.00'))
+        self.assertEqual(self.payable.balance(), ZERO_D)
+
+    def test_a_part_payment_leaves_the_rest_owed(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='5000.00')
+        mark_purchase_ordered(purchase)
+
+        self.assertEqual(self.payable.balance(), Decimal('4275.00'))
+        self.assertEqual(purchase.settled, Decimal('5000.00'))
+        self.assertEqual(purchase.still_owed, Decimal('4275.00'))
+
+    def test_leaving_it_blank_records_the_whole_thing_as_owed(self):
+        purchase = self._purchase()
+        mark_purchase_ordered(purchase)
+
+        self.assertIsNone(purchase.payment_id)
+        self.assertEqual(self.payable.balance(), Decimal('9275.00'))
+        self.assertEqual(self.cash.balance(), Decimal('500000.00'))
+
+    def test_receiving_without_confirming_still_pays(self):
+        """A local buy paid for and carried home the same day."""
+        purchase = self._purchase(paid_from=self.cash, amount_paid='9275.00')
+        receive_purchase(purchase)
+
+        self.assertIsNotNone(purchase.payment_id)
+        self.assertEqual(self.cash.balance(), Decimal('490725.00'))
+
+    def test_the_supplier_is_never_paid_twice(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='9275.00')
+        mark_purchase_ordered(purchase)
+        receive_purchase(purchase)
+
+        self.assertEqual(
+            Payment.objects.filter(reference=purchase.purchase_no).count(), 1)
+        self.assertEqual(self.cash.balance(), Decimal('490725.00'))
+
+    def test_the_payment_is_tagged_as_outgoing_to_the_supplier(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='1000.00')
+        mark_purchase_ordered(purchase)
+
+        payment = purchase.payment
+        self.assertEqual(payment.direction, Payment.DIRECTION_OUT)
+        self.assertEqual(payment.party, self.supplier)
+        self.assertEqual(payment.reference, purchase.purchase_no)
+
+    def test_paying_more_than_owed_leaves_an_advance(self):
+        """Prepaying a supplier is legitimate — the balance goes the other way."""
+        purchase = self._purchase(paid_from=self.cash, amount_paid='15000.00')
+        mark_purchase_ordered(purchase)
+
+        self.assertEqual(self.payable.balance(), Decimal('-5725.00'))
+
+    def test_the_ledger_balances_through_the_whole_flow(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='9275.00')
+        mark_purchase_ordered(purchase)
+        receive_purchase(purchase)
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_cancelling_leaves_the_payment_standing(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='9275.00')
+        mark_purchase_ordered(purchase)
+        cancel_purchase(purchase, reason='Supplier could not ship')
+
+        # The money really did leave; the supplier now holds an advance.
+        self.assertEqual(self.cash.balance(), Decimal('490725.00'))
+        self.assertEqual(self.payable.balance(), Decimal('-9275.00'))
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_creating_a_paid_purchase_through_the_form(self):
+        data = {
+            'purchase_type': Purchase.TYPE_IMPORT,
+            'supplier': self.supplier.pk,
+            'purchase_date': TODAY.isoformat(),
+            'paid_from': self.cash.pk,
+            'amount_paid': '9275.00',
+            'fx_rate_rmb_to_bdt': '17.5000',
+            'default_per_kg_charge_bdt': '100.00',
+            'billed_weight_kg': '0.000',
+            'extra_cost_bdt': '0.00',
+            'correction_percent': '0.00',
+            'notes': '',
+            'items-TOTAL_FORMS': '4',
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+            'items-0-variant': self.variant_a.pk,
+            'items-0-quantity': '10',
+            'items-0-unit_price_rmb': '50.00',
+            'items-0-domestic_shipping_rmb': '30.00',
+            'items-0-unit_cost_bdt': '',
+            'items-0-local_transport_bdt': '',
+            'items-0-entered_weight_kg': '',
+            'items-0-per_kg_charge_bdt': '',
+        }
+        for index in (1, 2, 3):
+            for field in ('variant', 'quantity', 'unit_price_rmb',
+                          'domestic_shipping_rmb', 'unit_cost_bdt',
+                          'local_transport_bdt', 'entered_weight_kg',
+                          'per_kg_charge_bdt'):
+                data[f'items-{index}-{field}'] = ''
+
+        response = self.client.post('/manage/finance/purchases/new/', data)
+        self.assertEqual(response.status_code, 302)
+
+        created = Purchase.objects.latest('id')
+        self.assertEqual(created.paid_from, self.cash)
+        self.assertEqual(created.amount_paid, Decimal('9275.00'))
+        # Nothing posts until the purchase is confirmed or received.
+        self.assertIsNone(created.payment_id)
+
+    def test_an_amount_without_an_account_is_refused(self):
+        data = {
+            'purchase_type': Purchase.TYPE_IMPORT,
+            'supplier': self.supplier.pk,
+            'purchase_date': TODAY.isoformat(),
+            'paid_from': '',
+            'amount_paid': '5000.00',
+            'fx_rate_rmb_to_bdt': '17.5000',
+            'default_per_kg_charge_bdt': '0.00',
+            'billed_weight_kg': '0.000',
+            'extra_cost_bdt': '0.00',
+            'correction_percent': '0.00',
+            'notes': '',
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+            'items-0-variant': self.variant_a.pk,
+            'items-0-quantity': '1',
+            'items-0-unit_price_rmb': '10.00',
+            'items-0-domestic_shipping_rmb': '',
+            'items-0-unit_cost_bdt': '',
+            'items-0-local_transport_bdt': '',
+            'items-0-entered_weight_kg': '',
+            'items-0-per_kg_charge_bdt': '',
+        }
+        response = self.client.post('/manage/finance/purchases/new/', data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Purchase.objects.count(), 0)
+
+    def test_the_form_offers_the_payment_fields(self):
+        response = self.client.get('/manage/finance/purchases/new/')
+        self.assertContains(response, 'Paying the supplier')
+        self.assertContains(response, 'name="paid_from"')
+        self.assertContains(response, 'name="amount_paid"')
+
+    def test_the_detail_page_shows_paid_and_owed(self):
+        purchase = self._purchase(paid_from=self.cash, amount_paid='5000.00')
+        mark_purchase_ordered(purchase)
+
+        response = self.client.get(f'/manage/finance/purchases/{purchase.pk}/')
+        self.assertContains(response, 'Paid To Supplier')
+        self.assertContains(response, 'Still Owed')
+
+
+@override_settings(STORAGES=TEST_STORAGES)
+class UndoAndDeleteTests(TestCase):
+    """
+    Removing things entered by mistake.
+
+    Two behaviours on purpose: never-posted records are deleted outright,
+    posted ones are undone by posting the opposite so the books still add up.
+    """
+
+    def setUp(self):
+        from django.core.management import call_command
+        from io import StringIO
+
+        call_command('seed_chart_of_accounts', stdout=StringIO())
+        User.objects.create_user('owner', password='pw12345!', is_staff=True)
+        self.client.login(username='owner', password='pw12345!')
+
+        self.cash = Account.objects.get(code='1010')
+        post_opening_balance(account=self.cash, date=LAST_MONTH,
+                             amount=Decimal('500000.00'))
+
+    # ── Investors ─────────────────────────────────────────────────────────
+
+    def test_an_investor_with_nothing_posted_is_deleted(self):
+        investor = Investor.objects.create(name='Typo Name')
+        delete_investor(investor)
+        self.assertFalse(Investor.objects.filter(pk=investor.pk).exists())
+
+    def test_an_investor_with_money_cannot_be_deleted(self):
+        investor = Investor.objects.create(name='Karim')
+        record_capital(investor=investor, date=TODAY,
+                       amount=Decimal('50000.00'), account=self.cash)
+
+        with self.assertRaises(LedgerError):
+            delete_investor(investor)
+        self.assertTrue(Investor.objects.filter(pk=investor.pk).exists())
+
+    def test_undoing_a_capital_entry_puts_the_money_back(self):
+        investor = Investor.objects.create(name='Karim')
+        txn = record_capital(investor=investor, date=TODAY,
+                             amount=Decimal('50000.00'), account=self.cash)
+        self.assertEqual(investor.current_stake, Decimal('50000.00'))
+
+        reverse_investor_movement(txn, reason='Entered twice')
+
+        self.assertEqual(investor.current_stake, ZERO_D)
+        self.assertEqual(self.cash.balance(), Decimal('500000.00'))
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_after_undoing_everything_the_investor_can_be_deleted(self):
+        """
+        Undoing leaves the reversal on the account, so the investor is kept —
+        the history of the mistake is part of the record.
+        """
+        investor = Investor.objects.create(name='Karim')
+        txn = record_capital(investor=investor, date=TODAY,
+                             amount=Decimal('50000.00'), account=self.cash)
+        reverse_investor_movement(txn, reason='Entered twice')
+
+        with self.assertRaises(LedgerError):
+            delete_investor(investor)
+
+    def test_undoing_a_distribution_takes_the_stakes_back(self):
+        investor = Investor.objects.create(name='Karim')
+        record_capital(investor=investor, date=LAST_MONTH,
+                       amount=Decimal('100000.00'), account=self.cash)
+        post_simple(date=TODAY, description='Sale',
+                    debit_account=self.cash,
+                    credit_account=Account.objects.get(code='4010'),
+                    amount=Decimal('20000.00'))
+
+        distribution = distribute_profit(period_start=LAST_MONTH, period_end=TODAY)
+        self.assertEqual(investor.current_stake, Decimal('120000.00'))
+
+        reverse_distribution(distribution, reason='Wrong period')
+
+        self.assertEqual(investor.current_stake, Decimal('100000.00'))
+        self.assertEqual(investor.profit_share_total, ZERO_D)
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    # ── Loans ─────────────────────────────────────────────────────────────
+
+    def _loan(self):
+        return create_loan(
+            direction=Loan.DIRECTION_TAKEN, counterparty_name='Uncle',
+            principal=Decimal('12000.00'), interest_rate=Decimal('0'),
+            method=Loan.METHOD_FLAT, tenure_months=12, start_date=TODAY,
+            account=self.cash,
+        )
+
+    def test_cancelling_a_loan_reverses_it_and_clears_the_schedule(self):
+        loan = self._loan()
+        self.assertEqual(loan.installments.count(), 12)
+
+        cancel_loan(loan, reason='Entered by mistake')
+
+        loan.refresh_from_db()
+        self.assertEqual(loan.status, Loan.STATUS_CANCELLED)
+        self.assertEqual(loan.installments.count(), 0)
+        self.assertEqual(self.cash.balance(), Decimal('500000.00'))
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_a_loan_with_repayments_cannot_be_cancelled(self):
+        loan = self._loan()
+        installment = loan.installments.first()
+        record_loan_payment(
+            loan=loan, date=TODAY, principal_amount=installment.principal_due,
+            interest_amount=ZERO_D, account=self.cash, installment=installment)
+
+        with self.assertRaises(LedgerError) as caught:
+            cancel_loan(loan, reason='Nope')
+        self.assertIn('repayment', str(caught.exception))
+
+    def test_undoing_a_repayment_makes_it_owed_again(self):
+        loan = self._loan()
+        installment = loan.installments.first()
+        payment = record_loan_payment(
+            loan=loan, date=TODAY, principal_amount=Decimal('1000.00'),
+            interest_amount=ZERO_D, account=self.cash, installment=installment)
+
+        loan.refresh_from_db()
+        self.assertEqual(loan.outstanding, Decimal('11000.00'))
+
+        reverse_loan_payment(payment, reason='Wrong loan')
+
+        loan.refresh_from_db()
+        installment.refresh_from_db()
+        self.assertEqual(loan.outstanding, Decimal('12000.00'))
+        self.assertEqual(installment.status, LoanInstallment.STATUS_DUE)
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_a_loan_can_be_cancelled_once_its_repayments_are_undone(self):
+        loan = self._loan()
+        installment = loan.installments.first()
+        payment = record_loan_payment(
+            loan=loan, date=TODAY, principal_amount=Decimal('1000.00'),
+            interest_amount=ZERO_D, account=self.cash, installment=installment)
+
+        reverse_loan_payment(payment, reason='Wrong loan')
+        cancel_loan(loan, reason='Entered by mistake')
+
+        loan.refresh_from_db()
+        self.assertEqual(loan.status, Loan.STATUS_CANCELLED)
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    # ── Stock ─────────────────────────────────────────────────────────────
+
+    def _variant(self):
+        from store.models import Category, Product, ProductVariant
+
+        category = Category.objects.create(name='Cables')
+        product = Product.objects.create(category=category, name='Cable')
+        return ProductVariant.objects.create(
+            product=product, name='Black', price=Decimal('100.00'))
+
+    def test_undoing_opening_stock_removes_it(self):
+        variant = self._variant()
+        receive_opening_stock(variant=variant, quantity=10,
+                              unit_cost=Decimal('50.00'), date=TODAY)
+        movement = StockMovement.objects.get(variant=variant)
+
+        reverse_stock_movement(movement, reason='Wrong product')
+
+        self.assertEqual(variant_stock(variant), 0)
+        self.assertEqual(Account.objects.get(code='1300').balance(), ZERO_D)
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_undoing_a_damage_write_off_restores_the_stock(self):
+        variant = self._variant()
+        receive_opening_stock(variant=variant, quantity=10,
+                              unit_cost=Decimal('50.00'), date=TODAY)
+        damage = adjust_stock(variant=variant, quantity=-3,
+                              reason=StockMovement.REASON_DAMAGE, note='Broken')
+        self.assertEqual(variant_stock(variant), 7)
+
+        reverse_stock_movement(damage, reason='Not actually broken')
+
+        self.assertEqual(variant_stock(variant), 10)
+        self.assertTrue(trial_balance()['is_balanced'])
+
+    def test_stock_already_sold_cannot_be_taken_back(self):
+        variant = self._variant()
+        receive_opening_stock(variant=variant, quantity=10,
+                              unit_cost=Decimal('50.00'), date=TODAY)
+        movement = StockMovement.objects.get(variant=variant)
+        consume_stock(variant=variant, quantity=4,
+                      reason=StockMovement.REASON_SALE, reference='AC-1')
+
+        with self.assertRaises(LedgerError) as caught:
+            reverse_stock_movement(movement, reason='Too late')
+        self.assertIn('already been sold', str(caught.exception))
+
+    def test_a_sale_movement_must_be_undone_from_its_document(self):
+        variant = self._variant()
+        receive_opening_stock(variant=variant, quantity=10,
+                              unit_cost=Decimal('50.00'), date=TODAY)
+        sale = consume_stock(variant=variant, quantity=2,
+                             reason=StockMovement.REASON_SALE, reference='AC-1')
+
+        with self.assertRaises(LedgerError) as caught:
+            reverse_stock_movement(sale, reason='nope')
+        self.assertIn('Undo it from the invoice', str(caught.exception))
+
+    def test_the_same_entry_cannot_be_taken_back_twice(self):
+        variant = self._variant()
+        receive_opening_stock(variant=variant, quantity=10,
+                              unit_cost=Decimal('50.00'), date=TODAY)
+        movement = StockMovement.objects.get(variant=variant)
+
+        reverse_stock_movement(movement, reason='Wrong')
+        with self.assertRaises(LedgerError):
+            reverse_stock_movement(movement, reason='Again')
+
+    # ── Drafts and untouched records ──────────────────────────────────────
+
+    def test_a_draft_invoice_is_deleted_outright(self):
+        party = Party.objects.create(name='Someone')
+        invoice = Invoice.objects.create(party=party, issue_date=TODAY)
+        InvoiceItem.objects.create(
+            invoice=invoice, description='X',
+            unit_price=Decimal('10.00'), quantity=1)
+
+        delete_draft_invoice(invoice)
+        self.assertFalse(Invoice.objects.filter(pk=invoice.pk).exists())
+
+    def test_an_issued_invoice_cannot_be_deleted(self):
+        party = Party.objects.create(name='Someone')
+        invoice = Invoice.objects.create(party=party, issue_date=TODAY)
+        InvoiceItem.objects.create(
+            invoice=invoice, description='X',
+            unit_price=Decimal('100.00'), quantity=1)
+        issue_invoice(invoice)
+
+        with self.assertRaises(LedgerError) as caught:
+            delete_draft_invoice(invoice)
+        self.assertIn('Cancel it instead', str(caught.exception))
+
+    def test_a_draft_purchase_is_deleted_outright(self):
+        supplier = Party.objects.create(
+            name='Supplier', party_type=Party.TYPE_SUPPLIER)
+        purchase = Purchase.objects.create(
+            supplier=supplier, purchase_date=TODAY,
+            fx_rate_rmb_to_bdt=Decimal('17.50'))
+
+        delete_draft_purchase(purchase)
+        self.assertFalse(Purchase.objects.filter(pk=purchase.pk).exists())
+
+    def test_a_client_who_never_traded_is_deleted(self):
+        party = Party.objects.create(name='Wrong Name')
+        delete_party(party)
+        self.assertFalse(Party.objects.filter(pk=party.pk).exists())
+
+    def test_a_client_with_an_issued_invoice_is_kept(self):
+        party = Party.objects.create(name='Real Client')
+        invoice = Invoice.objects.create(party=party, issue_date=TODAY)
+        InvoiceItem.objects.create(
+            invoice=invoice, description='X',
+            unit_price=Decimal('100.00'), quantity=1)
+        issue_invoice(invoice)
+
+        with self.assertRaises(LedgerError):
+            delete_party(party)
+
+    # ── Through the screens ───────────────────────────────────────────────
+
+    def test_undoing_a_capital_entry_through_the_view(self):
+        investor = Investor.objects.create(name='Karim')
+        txn = record_capital(investor=investor, date=TODAY,
+                             amount=Decimal('50000.00'), account=self.cash)
+
+        response = self.client.post(
+            f'/manage/finance/investors/{investor.pk}/undo/{txn.pk}/',
+            {'reason': 'Entered twice'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(investor.current_stake, ZERO_D)
+
+    def test_deleting_an_investor_through_the_view(self):
+        investor = Investor.objects.create(name='Typo')
+        response = self.client.post(f'/manage/finance/investors/{investor.pk}/delete/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Investor.objects.filter(pk=investor.pk).exists())
+
+    def test_cancelling_a_loan_through_the_view(self):
+        loan = self._loan()
+        response = self.client.post(f'/manage/finance/loans/{loan.pk}/cancel/',
+                                    {'reason': 'Mistake'})
+        self.assertEqual(response.status_code, 302)
+        loan.refresh_from_db()
+        self.assertEqual(loan.status, Loan.STATUS_CANCELLED)
+
+    def test_deleting_a_draft_invoice_through_the_view(self):
+        party = Party.objects.create(name='Someone')
+        invoice = Invoice.objects.create(party=party, issue_date=TODAY)
+        response = self.client.post(f'/manage/finance/invoices/{invoice.pk}/delete/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Invoice.objects.filter(pk=invoice.pk).exists())
+
+    def test_the_screens_offer_the_right_option(self):
+        investor = Investor.objects.create(name='Karim')
+        party = Party.objects.create(name='Client')
+        loan = self._loan()
+
+        pages = {
+            f'/manage/finance/investors/{investor.pk}/': 'Remove investor',
+            f'/manage/finance/parties/{party.pk}/': 'Remove client',
+            f'/manage/finance/loans/{loan.pk}/': 'Cancel loan',
+        }
+        for url, expected in pages.items():
+            with self.subTest(url=url):
+                self.assertContains(self.client.get(url), expected)
+
+    def test_a_get_never_deletes_anything(self):
+        investor = Investor.objects.create(name='Typo')
+        self.client.get(f'/manage/finance/investors/{investor.pk}/delete/')
+        self.assertTrue(Investor.objects.filter(pk=investor.pk).exists())
 
 
 class SeedCommandTests(TestCase):

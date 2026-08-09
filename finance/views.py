@@ -40,6 +40,10 @@ from .models import (
     ProfitDistribution, Purchase, Transaction, today,
 )
 from .services import (
+    cancel_loan, delete_draft_invoice, delete_draft_purchase, delete_investor,
+    delete_party, reverse_distribution, reverse_investor_movement,
+    reverse_loan_payment, reverse_stock_movement,
+    why_investor_cannot_be_deleted, why_party_cannot_be_deleted,
     with_outstanding, with_payment_totals,
     account_ledger, accounts_with_balances, adjust_stock, ageing_report,
     cancel_invoice, cancel_purchase, cash_on_hand, create_invoice_from_order,
@@ -48,7 +52,8 @@ from .services import (
     low_stock, margin_report, mark_purchase_ordered, open_invoices_for,
     ownership_split, party_statement, period_profit, post_expense,
     post_opening_balance, post_transfer, purchase_batches, receivables_summary,
-    receive_opening_stock, receive_purchase, record_capital, record_drawing,
+    oversold_variants, receive_opening_stock, receive_purchase,
+    record_capital, record_drawing,
     record_loan_payment, record_payment, record_supplier_payment,
     reverse_payment, reverse_transaction, stock_cost_history, stock_valuation,
     trial_balance, type_balance, variant_stock,
@@ -93,6 +98,7 @@ def dashboard(request):
         'receivables':      receivables_summary(),
         'loans':            loan_summary(),
         'low_stock':        low_stock(),
+        'oversold':         oversold_variants(),
         'draft_invoices':   Invoice.objects.filter(status=Invoice.STATUS_DRAFT).count(),
         'affiliate_owed':   affiliate_commission_owed(),
     }
@@ -406,6 +412,8 @@ def party_detail(request, pk):
         'party':    party,
         'invoices': invoices,
         'open_count': sum(1 for inv in invoices if inv.is_open),
+        'cannot_delete': why_party_cannot_be_deleted(party),
+        'remove_url': reverse('finance:party_delete', kwargs={'pk': party.pk}),
     }
     return render(request, 'finance/party_detail.html', ctx)
 
@@ -642,6 +650,7 @@ def invoice_detail(request, pk):
         'items':       invoice.items.all(),
         'share_url':   share_url,
         'cancel_form': InvoiceCancelForm(),
+        'delete_url':  reverse('finance:invoice_delete', kwargs={'pk': invoice.pk}),
     }
     return render(request, 'finance/invoice_detail.html', ctx)
 
@@ -1076,6 +1085,7 @@ def purchase_create(request):
 
     return render(request, 'finance/purchase_form.html', {
         'form': form, 'formset': formset, 'is_new': True,
+        'money_accounts': accounts_with_balances(types=Account.MONEY_TYPES),
     })
 
 
@@ -1103,6 +1113,7 @@ def purchase_edit(request, pk):
 
     return render(request, 'finance/purchase_form.html', {
         'form': form, 'formset': formset, 'purchase': purchase, 'is_new': False,
+        'money_accounts': accounts_with_balances(types=Account.MONEY_TYPES),
     })
 
 
@@ -1118,6 +1129,7 @@ def purchase_detail(request, pk):
         'batches':      purchase_batches(purchase),
         'receive_form': PurchaseReceiveForm(),
         'cancel_form':  PurchaseCancelForm(),
+        'delete_url':   reverse('finance:purchase_delete', kwargs={'pk': purchase.pk}),
     }
     return render(request, 'finance/purchase_detail.html', ctx)
 
@@ -1187,6 +1199,17 @@ def purchase_cancel(request, pk):
         messages.error(request, str(exc))
     else:
         messages.success(request, f'{purchase.purchase_no} cancelled.')
+        if purchase.payment_id:
+            # Cancelling the order does not un-send the money. Leaving the
+            # payment standing turns the supplier balance into an advance,
+            # which is what actually happened.
+            messages.warning(
+                request,
+                f'৳{purchase.payment.amount:,.2f} was already paid to '
+                f'{purchase.supplier.name} and has been left in place — they now '
+                f'hold that as an advance. Reverse it from Payments if it was '
+                f'refunded.',
+            )
     return redirect('finance:purchase_detail', pk=purchase.pk)
 
 
@@ -1362,6 +1385,7 @@ def stock_list(request):
         'rows':      rows,
         'search':    search,
         'low_stock': low_stock(),
+        'oversold':  oversold_variants(),
     })
 
 
@@ -1380,12 +1404,15 @@ def stock_detail(request, variant_id):
         'transaction', 'batch',
     ).prefetch_related('consumptions__batch')[:100]
 
+    from .services import UNDOABLE_STOCK_REASONS
+
     return render(request, 'finance/stock_detail.html', {
         'variant':      variant,
         'history':      stock_cost_history(variant),
         'movements':    movements,
         'on_hand':      variant_stock(variant),
         'unit_cost':    current_unit_cost(variant),
+        'undoable':     UNDOABLE_STOCK_REASONS,
     })
 
 
@@ -1533,6 +1560,8 @@ def investor_detail(request, pk):
         'statement': investor_statement(investor),
         'percent':   percent,
         'shares':    investor.profit_shares.select_related('distribution'),
+        'cannot_delete': why_investor_cannot_be_deleted(investor),
+        'remove_url': reverse('finance:investor_delete', kwargs={'pk': investor.pk}),
     })
 
 
@@ -1671,8 +1700,9 @@ def loan_detail(request, pk):
     return render(request, 'finance/loan_detail.html', {
         'loan':         loan,
         'installments': loan.installments.all(),
-        'payments':     loan.payments.select_related('account'),
+        'payments':     loan.payments.select_related('account', 'transaction'),
         'payment_form': LoanPaymentForm(loan=loan),
+        'cancel_url':   reverse('finance:loan_cancel', kwargs={'pk': loan.pk}),
     })
 
 
@@ -1710,6 +1740,202 @@ def loan_pay(request, pk):
             request, f'৳{payment.total_amount:,.2f} recorded against {loan.loan_no}.',
         )
     return redirect('finance:loan_detail', pk=loan.pk)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  UNDO / DELETE
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  One rule, applied everywhere: if nothing was posted it is really deleted; if
+#  money moved it is undone by posting the opposite. The buttons say which is
+#  about to happen so the outcome is never a surprise.
+
+def _undo_reason(request):
+    return (request.POST.get('reason') or '').strip()
+
+
+@finance_staff_required
+def investor_movement_undo(request, pk, txn_id):
+    """POST /manage/finance/investors/<pk>/undo/<txn_id>/"""
+    investor = get_object_or_404(Investor, pk=pk)
+    txn = get_object_or_404(Transaction, pk=txn_id)
+
+    if request.method != 'POST':
+        return redirect('finance:investor_detail', pk=investor.pk)
+
+    try:
+        reverse_investor_movement(
+            txn, reason=_undo_reason(request), created_by=request.user)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f'{txn.reference_no} undone. The opposite entry has been posted and '
+            f'both stay in the history.',
+        )
+    return redirect('finance:investor_detail', pk=investor.pk)
+
+
+@finance_staff_required
+def investor_delete(request, pk):
+    """POST /manage/finance/investors/<pk>/delete/"""
+    investor = get_object_or_404(Investor, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:investor_detail', pk=investor.pk)
+
+    name = investor.name
+    try:
+        delete_investor(investor)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+        return redirect('finance:investor_detail', pk=investor.pk)
+
+    messages.success(request, f'{name} removed. Nothing had been posted for them.')
+    return redirect('finance:investor_list')
+
+
+@finance_staff_required
+def distribution_undo(request, pk):
+    """POST /manage/finance/investors/distributions/<pk>/undo/"""
+    distribution = get_object_or_404(ProfitDistribution, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:investor_list')
+
+    try:
+        reverse_distribution(
+            distribution, reason=_undo_reason(request), created_by=request.user)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            'Profit distribution undone. Each investor\'s stake has gone back.',
+        )
+    return redirect('finance:investor_list')
+
+
+@finance_staff_required
+def loan_cancel(request, pk):
+    """POST /manage/finance/loans/<pk>/cancel/"""
+    loan = get_object_or_404(Loan, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:loan_detail', pk=loan.pk)
+
+    try:
+        cancel_loan(loan, reason=_undo_reason(request), created_by=request.user)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+        return redirect('finance:loan_detail', pk=loan.pk)
+
+    messages.success(
+        request,
+        f'{loan.loan_no} cancelled. The money movement has been reversed and '
+        f'its schedule removed.',
+    )
+    return redirect('finance:loan_list')
+
+
+@finance_staff_required
+def loan_payment_undo(request, pk, payment_id):
+    """POST /manage/finance/loans/<pk>/payments/<payment_id>/undo/"""
+    loan = get_object_or_404(Loan, pk=pk)
+    payment = get_object_or_404(loan.payments, pk=payment_id)
+
+    if request.method != 'POST':
+        return redirect('finance:loan_detail', pk=loan.pk)
+
+    try:
+        reverse_loan_payment(
+            payment, reason=_undo_reason(request), created_by=request.user)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f'৳{payment.total_amount:,.2f} repayment undone — it is owed again.',
+        )
+    return redirect('finance:loan_detail', pk=loan.pk)
+
+
+@finance_staff_required
+def stock_movement_undo(request, pk):
+    """POST /manage/finance/stock/movements/<pk>/undo/"""
+    from .models import StockMovement
+
+    movement = get_object_or_404(StockMovement, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:stock_movements')
+
+    try:
+        reverse_stock_movement(
+            movement, reason=_undo_reason(request), created_by=request.user)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, 'Stock entry taken back.')
+    return redirect('finance:stock_detail', variant_id=movement.variant_id)
+
+
+@finance_staff_required
+def party_delete(request, pk):
+    """POST /manage/finance/parties/<pk>/delete/"""
+    party = get_object_or_404(Party, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:party_detail', pk=party.pk)
+
+    name = party.name
+    try:
+        delete_party(party)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+        return redirect('finance:party_detail', pk=party.pk)
+
+    messages.success(request, f'{name} removed. They had never traded.')
+    return redirect('finance:party_list')
+
+
+@finance_staff_required
+def invoice_delete(request, pk):
+    """POST /manage/finance/invoices/<pk>/delete/"""
+    invoice = get_object_or_404(Invoice, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:invoice_detail', pk=invoice.pk)
+
+    label = invoice.display_number
+    try:
+        delete_draft_invoice(invoice)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+        return redirect('finance:invoice_detail', pk=invoice.pk)
+
+    messages.success(request, f'{label} deleted. It had never been issued.')
+    return redirect('finance:invoice_list')
+
+
+@finance_staff_required
+def purchase_delete(request, pk):
+    """POST /manage/finance/purchases/<pk>/delete/"""
+    purchase = get_object_or_404(Purchase, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('finance:purchase_detail', pk=purchase.pk)
+
+    label = purchase.purchase_no
+    try:
+        delete_draft_purchase(purchase)
+    except LedgerError as exc:
+        messages.error(request, str(exc))
+        return redirect('finance:purchase_detail', pk=purchase.pk)
+
+    messages.success(request, f'{label} deleted. It had never been confirmed.')
+    return redirect('finance:purchase_list')
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -31,6 +31,14 @@
   </div>
 {% endif %}
 
+{% if oversold %}
+  <div class="alert alert-danger">
+    <strong>{{ oversold|length }} product{{ oversold|pluralize }} sold more than was ever received.</strong>
+    That almost always means the stock was never entered into the system.
+    <a href="{% url 'finance:stock_list' %}"><strong>See which →</strong></a>
+  </div>
+{% endif %}
+
 {% if affiliate_owed %}
   <div class="alert alert-warning">
     <strong>৳{{ affiliate_owed|floatformat:2 }} owed to affiliates</strong>

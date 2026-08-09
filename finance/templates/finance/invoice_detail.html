@@ -189,6 +189,10 @@
   </div>
 {% endif %}
 
+{% if invoice.is_draft %}
+  {% include 'finance/partials/danger_zone.html' with title='Delete this draft' action=delete_url label='Delete draft' confirm='Delete this draft for good?' explain='Nothing has been posted for this draft, so it can be deleted outright and nothing is lost.' %}
+{% endif %}
+
 {% if invoice.status != 'cancelled' %}
   <div class="card">
     <div class="card-head"><span class="card-title">Cancel this invoice</span></div>

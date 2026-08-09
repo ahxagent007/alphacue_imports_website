@@ -350,6 +350,12 @@ class InvoiceItemForm(forms.ModelForm):
         from store.models import ProductVariant
         self.fields['variant'].queryset = ProductVariant.objects.select_related('product')
         self.fields['variant'].required = False
+        # The model defaults this to zero, so demanding a number just to say
+        # "no discount" is noise — and the error was not even displayed.
+        self.fields['discount'].required = False
+
+    def clean_discount(self):
+        return self.cleaned_data.get('discount') or ZERO
 
     @property
     def variant_label(self):
@@ -701,6 +707,7 @@ class PurchaseForm(forms.ModelForm):
     class Meta:
         model = Purchase
         fields = ['purchase_type', 'supplier', 'purchase_date',
+                  'paid_from', 'amount_paid',
                   'fx_rate_rmb_to_bdt', 'default_per_kg_charge_bdt',
                   'billed_weight_kg', 'extra_cost_bdt', 'correction_percent',
                   'notes']
@@ -708,6 +715,8 @@ class PurchaseForm(forms.ModelForm):
             'purchase_type':             forms.Select(attrs=SELECT),
             'supplier':                  forms.Select(attrs=SELECT),
             'purchase_date':             forms.DateInput(attrs=DATE_INPUT),
+            'paid_from':                 forms.Select(attrs=SELECT),
+            'amount_paid':               forms.NumberInput(attrs=NUMBER_INPUT),
             'fx_rate_rmb_to_bdt':        forms.NumberInput(attrs={**NUMBER_INPUT, 'step': '0.0001'}),
             'default_per_kg_charge_bdt': forms.NumberInput(attrs=NUMBER_INPUT),
             'billed_weight_kg':          forms.NumberInput(attrs={**NUMBER_INPUT, 'step': '0.001'}),
@@ -725,6 +734,27 @@ class PurchaseForm(forms.ModelForm):
             "The weight the agent charged you for. Leave at 0 until the shipment "
             "lands — the line weights are scaled to match it."
         )
+        self.fields['paid_from'].queryset = _money_accounts()
+        self.fields['paid_from'].required = False
+        self.fields['paid_from'].empty_label = 'Not paying now — record it as owed'
+        self.fields['amount_paid'].required = False
+
+        # The payment posts once, when the purchase first reaches the ledger.
+        # After that these are a record of what happened, not an instruction.
+        if self.instance.pk and self.instance.payment_id:
+            self.fields['paid_from'].disabled = True
+            self.fields['amount_paid'].disabled = True
+            self.fields['amount_paid'].help_text = (
+                'Already paid — recorded as '
+                f'{self.instance.payment.reference_no}. Record anything further '
+                'from Payments → Pay supplier.'
+            )
+
+    def clean_amount_paid(self):
+        amount = self.cleaned_data.get('amount_paid') or ZERO
+        if amount < ZERO:
+            raise forms.ValidationError('A payment cannot be negative.')
+        return amount
 
     def clean(self):
         cleaned = super().clean()
@@ -735,6 +765,16 @@ class PurchaseForm(forms.ModelForm):
                     'fx_rate_rmb_to_bdt',
                     'An import purchase needs the RMB exchange rate.',
                 )
+
+        amount = cleaned.get('amount_paid') or ZERO
+        account = cleaned.get('paid_from')
+        if amount > ZERO and not account:
+            self.add_error('paid_from', 'Say which account the money came from.')
+        if account and amount <= ZERO:
+            self.add_error(
+                'amount_paid',
+                'Enter how much you paid, or clear the account to record it as owed.',
+            )
         return cleaned
 
 
@@ -755,6 +795,14 @@ class PurchaseItemForm(forms.ModelForm):
             'per_kg_charge_bdt':     forms.NumberInput(attrs=NUMBER_INPUT),
         }
 
+    #: Every one of these has a model default, so a blank cell means zero
+    #: rather than a validation error — a local purchase leaves the ¥ columns
+    #: empty, and an import leaves the ৳ ones empty.
+    OPTIONAL_NUMERIC = [
+        'unit_price_rmb', 'domestic_shipping_rmb',
+        'unit_cost_bdt', 'local_transport_bdt', 'entered_weight_kg',
+    ]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from store.models import ProductVariant
@@ -762,6 +810,15 @@ class PurchaseItemForm(forms.ModelForm):
         # validating even if the product was retired after the order was placed.
         self.fields['variant'].queryset = ProductVariant.objects.select_related('product')
         self.fields['variant'].required = False
+        for name in self.OPTIONAL_NUMERIC:
+            self.fields[name].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        for name in self.OPTIONAL_NUMERIC:
+            if cleaned.get(name) is None:
+                cleaned[name] = ZERO
+        return cleaned
 
     @property
     def variant_label(self):

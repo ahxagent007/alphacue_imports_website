@@ -10,36 +10,38 @@
 
 <div class="section-card">
   {% if page_obj %}
-  <table class="comm-table">
-    <thead>
-      <tr>
-        <th>Date & Time</th>
-        <th>IP Address</th>
-        <th>Referred User</th>
-        <th>Landing URL</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for click in page_obj %}
-      <tr>
-        <td style="white-space:nowrap;font-size:.78rem;color:#9A9188;">{{ click.clicked_at|date:"d M Y, g:i A" }}</td>
-        <td style="font-size:.8rem;color:#5A5450;font-family:monospace;">{{ click.ip_address }}</td>
-        <td>
-          {% if click.referred_user %}
-            <span style="font-size:.8rem;font-weight:600;color:#1A1A1A;">{{ click.referred_user.username }}</span>
-          {% else %}
-            <span style="font-size:.78rem;color:#9A9188;">Guest</span>
-          {% endif %}
-        </td>
-        <td style="font-size:.75rem;color:#9A9188;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {{ click.landing_url|default:"—" }}
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="4" style="text-align:center;padding:3rem;color:#9A9188;">No clicks recorded yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table class="comm-table">
+      <thead>
+        <tr>
+          <th>Date & Time</th>
+          <th>IP Address</th>
+          <th>Referred User</th>
+          <th>Landing URL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for click in page_obj %}
+        <tr>
+          <td style="white-space:nowrap;font-size:.78rem;color:#9A9188;">{{ click.clicked_at|date:"d M Y, g:i A" }}</td>
+          <td style="font-size:.8rem;color:#5A5450;font-family:monospace;">{{ click.ip_address }}</td>
+          <td>
+            {% if click.referred_user %}
+              <span style="font-size:.8rem;font-weight:600;color:#1A1A1A;">{{ click.referred_user.username }}</span>
+            {% else %}
+              <span style="font-size:.78rem;color:#9A9188;">Guest</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.75rem;color:#9A9188;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ click.landing_url|default:"—" }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center;padding:3rem;color:#9A9188;">No clicks recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {% if page_obj.has_other_pages %}
   <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;flex-wrap:wrap;">

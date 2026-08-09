@@ -1,0 +1,101 @@
+{% comment %}
+Shared "add another row" behaviour for line-item formsets.
+
+Django renders a fixed number of spare rows, so a ten-line invoice was
+impossible without saving and reopening. This clones the formset's own
+`empty_form` markup and bumps TOTAL_FORMS, which is all Django needs to accept
+the extra rows.
+
+To wire a table up:
+
+  1. Put `data-formset-body` on the <tbody> and `data-formset-prefix="items"`
+     on the wrapper.
+  2. Render a <template data-formset-template> holding one row built from
+     `formset.empty_form` — Django writes `__prefix__` into the field names,
+     which is replaced with the real index here.
+  3. Add a button with `data-add-row` inside the same wrapper.
+  4. Include this partial once, inside {% block extra_js %}.
+
+Rows are only ever appended. Removing one would leave a gap in the index
+sequence that Django's management form does not tolerate, so the remove button
+clears the row instead — a blank row is skipped on save anyway.
+{% endcomment %}
+<script>
+(function () {
+  'use strict';
+
+  function wire(wrapper) {
+    var prefix   = wrapper.dataset.formsetPrefix;
+    var tbody    = wrapper.querySelector('[data-formset-body]');
+    var template = wrapper.querySelector('[data-formset-template]');
+    var button   = wrapper.querySelector('[data-add-row]');
+    var total    = document.querySelector('input[name="' + prefix + '-TOTAL_FORMS"]');
+
+    if (!prefix || !tbody || !template || !button || !total) { return; }
+
+    var maxInput = document.querySelector('input[name="' + prefix + '-MAX_NUM_FORMS"]');
+    var maxForms = maxInput ? parseInt(maxInput.value, 10) : 1000;
+    if (isNaN(maxForms)) { maxForms = 1000; }
+
+    function clearRow(row) {
+      row.querySelectorAll('input, select, textarea').forEach(function (field) {
+        if (field.type === 'checkbox' || field.type === 'radio') {
+          field.checked = false;
+        } else if (field.type !== 'hidden' || field.name.indexOf('-id') === -1) {
+          field.value = '';
+        }
+      });
+      var combo = row.querySelector('.combo');
+      if (combo) {
+        combo.classList.remove('has-value');
+        var warn = combo.querySelector('.line-warn');
+        if (warn) { warn.classList.remove('show'); }
+      }
+    }
+
+    function addRow() {
+      var index = parseInt(total.value, 10);
+      if (isNaN(index)) { return; }
+
+      if (index >= maxForms) {
+        button.disabled = true;
+        button.textContent = 'Maximum rows reached';
+        return;
+      }
+
+      var holder = document.createElement('tbody');
+      holder.innerHTML = template.innerHTML.replace(/__prefix__/g, index);
+
+      var row = holder.firstElementChild;
+      if (!row) { return; }
+
+      tbody.appendChild(row);
+      total.value = index + 1;
+
+      // Give the new row its product picker, then put the cursor where the
+      // user is about to type.
+      if (window.AlphaCueProductPicker) {
+        window.AlphaCueProductPicker.refresh();
+      }
+
+      // Without this the new row has no column labels, so on a phone it would
+      // stack as a column of unidentified inputs.
+      if (window.AlphaCueTables) {
+        window.AlphaCueTables.refresh();
+      }
+
+      var remove = row.querySelector('[data-clear-row]');
+      if (remove) {
+        remove.addEventListener('click', function () { clearRow(row); });
+      }
+
+      var first = row.querySelector('.product-search, input[type="text"]');
+      if (first) { first.focus(); }
+    }
+
+    button.addEventListener('click', addRow);
+  }
+
+  document.querySelectorAll('[data-formset-prefix]').forEach(wire);
+})();
+</script>

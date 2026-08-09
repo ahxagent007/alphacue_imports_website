@@ -75,7 +75,7 @@
   <div class="card-head"><span class="card-title">Every movement</span></div>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Date</th><th>Reason</th><th>Reference</th><th>Detail</th><th class="num">Change</th><th class="num">Cost</th></tr></thead>
+      <thead><tr><th>Date</th><th>Reason</th><th>Reference</th><th>Detail</th><th class="num">Change</th><th class="num">Cost</th><th></th></tr></thead>
       <tbody>
         {% for movement in movements %}
           <tr>
@@ -99,9 +99,24 @@
               <span class="money {% if movement.quantity > 0 %}pos{% else %}neg{% endif %}">{{ movement.quantity|stringformat:"+d" }}</span>
             </td>
             <td class="num money">৳{{ movement.total_cost|floatformat:2 }}</td>
+            <td class="num">
+              {% if movement.reason in undoable %}
+                <form method="post" action="{% url 'finance:stock_movement_undo' movement.pk %}"
+                      style="display:flex;gap:.35rem;justify-content:flex-end"
+                      onsubmit="return confirm('Take this stock entry back?');">
+                  {% csrf_token %}
+                  <input type="text" name="reason" placeholder="Reason"
+                         class="form-input" style="width:120px;font-size:.75rem;padding:.35rem .5rem">
+                  <button type="submit" class="btn btn-ghost"
+                          style="border-color:#EF4444;color:#991B1B">Undo</button>
+                </form>
+              {% else %}
+                <span class="muted" style="font-size:.72rem">from a sale or purchase</span>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6">
+          <tr><td colspan="7">
             <div class="empty-state"><div class="icon">📭</div><p>Nothing has moved yet.</p></div>
           </td></tr>
         {% endfor %}

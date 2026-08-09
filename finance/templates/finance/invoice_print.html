@@ -53,11 +53,7 @@
     .stamp-overdue{background:#FEE2E2;color:#991B1B;border:1px solid #EF4444}
     .stamp-cancelled{background:#F0EDE8;color:#5A5450;border:1px solid #D8D4CC}
 
-    .pay-box{margin-top:2rem;padding:1.1rem 1.3rem;background:#FAFAF8;border:1px solid var(--line);border-radius:8px}
-    .pay-box h3{font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem}
-    .pay-box p{font-size:.83rem;line-height:1.7;color:#3A3530}
-
-    .notes{margin-top:1.5rem;font-size:.83rem;line-height:1.7;color:#5A5450}
+    .notes{margin-top:2rem;font-size:.83rem;line-height:1.7;color:#5A5450}
     .foot{margin-top:2.5rem;padding-top:1.2rem;border-top:1px solid var(--line);text-align:center;font-size:.76rem;color:var(--muted);line-height:1.7}
 
     @media print{
@@ -66,15 +62,26 @@
       .sheet{max-width:none;border:none;border-radius:0;padding:0;margin:0}
       thead{display:table-header-group}
       tr{page-break-inside:avoid}
-      .pay-box{background:#fff;border:1px solid #ccc}
       @page{margin:14mm}
     }
     @media(max-width:620px){
-      body{padding:.8rem .5rem}
+      body{padding:.8rem .5rem;font-size:15px}
       .sheet{padding:1.3rem}
       .parties{grid-template-columns:1fr;gap:1.2rem}
       .head{flex-direction:column}
       .doc-title{text-align:left}
+      .doc-title h1{font-size:1.5rem}
+      .brand img{height:42px;width:42px}
+      .toolbar{justify-content:stretch}
+      .toolbar .btn{flex:1 1 auto;justify-content:center;min-height:44px}
+      /* The sheet has to stay a recognisable invoice, so the line table keeps
+         its columns and gives up padding instead of stacking. */
+      thead th,tbody td{padding:.55rem .3rem;font-size:.79rem}
+      thead th{font-size:.6rem;letter-spacing:.04em}
+      .item-sku{font-size:.68rem}
+      .totals{max-width:none}
+      .totals tr td{padding:.4rem .3rem}
+      .foot{margin-top:1.8rem}
     }
   </style>
 </head>
@@ -181,15 +188,6 @@
       <tr class="grand"><td>Balance Due</td><td>৳{{ invoice.amount_due|floatformat:2 }}</td></tr>
     {% endif %}
   </table>
-
-  <div class="pay-box">
-    <h3>How to Pay</h3>
-    <p>
-      bKash / Nagad: <strong>{{ settings.contact_phone|default:"—" }}</strong><br>
-      Please quote invoice <strong>{{ invoice.display_number }}</strong> as the reference
-      so your payment can be matched to this bill.
-    </p>
-  </div>
 
   {% if invoice.notes %}
     <div class="notes">{{ invoice.notes|linebreaksbr }}</div>

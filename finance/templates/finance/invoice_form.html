@@ -39,7 +39,7 @@
         Search a product to fill the row, or just type a description for anything not in the catalogue
       </span>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap" data-formset-prefix="{{ formset.prefix }}">
       {{ formset.management_form }}
       <table class="data-table" data-product-picker data-stock-warning="1"
              data-search-url="{% url 'finance:product_search' %}">
@@ -52,16 +52,18 @@
             <th style="width:125px">Discount</th><th style="width:70px">Remove</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-formset-body>
           {% for item_form in formset %}
             <tr class="line-row">
               {{ item_form.id }}
               <td class="combo">
                 {{ item_form.variant }}
-                <input type="text" class="form-input product-search" autocomplete="off"
-                       placeholder="Search by name or SKU…"
-                       value="{{ item_form.variant_label }}">
-                <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                <div class="combo-input">
+                  <input type="text" class="form-input product-search" autocomplete="off"
+                         placeholder="Search by name or SKU…"
+                         value="{{ item_form.variant_label }}">
+                  <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                </div>
                 <div class="combo-panel"></div>
                 <div class="line-warn"></div>
                 {% for error in item_form.variant.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
@@ -71,7 +73,10 @@
                 {% for error in item_form.description.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
                 {% for error in item_form.non_field_errors %}<div class="form-error">{{ error }}</div>{% endfor %}
               </td>
-              <td>{{ item_form.sku }}</td>
+              <td>
+                {{ item_form.sku }}
+                {% for error in item_form.sku.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
               <td>
                 {{ item_form.unit_price }}
                 {% for error in item_form.unit_price.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
@@ -80,12 +85,44 @@
                 {{ item_form.quantity }}
                 {% for error in item_form.quantity.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
               </td>
-              <td>{{ item_form.discount }}</td>
+              <td>
+                {{ item_form.discount }}
+                {% for error in item_form.discount.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
               <td style="text-align:center">{% if item_form.instance.pk %}{{ item_form.DELETE }}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
+
+      <template data-formset-template>
+        <tr class="line-row">
+          {{ formset.empty_form.id }}
+          <td class="combo">
+            {{ formset.empty_form.variant }}
+            <div class="combo-input">
+              <input type="text" class="form-input product-search" autocomplete="off"
+                     placeholder="Search by name or SKU…">
+              <button type="button" class="combo-clear" title="Clear product">&times;</button>
+            </div>
+            <div class="combo-panel"></div>
+            <div class="line-warn"></div>
+          </td>
+          <td>{{ formset.empty_form.description }}</td>
+          <td>{{ formset.empty_form.sku }}</td>
+          <td>{{ formset.empty_form.unit_price }}</td>
+          <td>{{ formset.empty_form.quantity }}</td>
+          <td>{{ formset.empty_form.discount }}</td>
+          <td style="text-align:center">
+            <button type="button" data-clear-row class="btn btn-ghost"
+                    style="padding:.3rem .6rem" title="Clear this row">&times;</button>
+          </td>
+        </tr>
+      </template>
+
+      <div style="padding:.9rem 1.25rem;border-top:1px solid #F0EDE8">
+        <button type="button" data-add-row class="btn btn-ghost">+ Add another line</button>
+      </div>
     </div>
   </div>
 
@@ -112,4 +149,5 @@
 
 {% block extra_js %}
 {% include 'finance/partials/product_picker.html' %}
+{% include 'finance/partials/formset_add_row.html' %}
 {% endblock %}

@@ -247,13 +247,27 @@ a purchase records what you paid, which has nothing to do with the shelf price.
     if (quantity) { quantity.addEventListener('input', checkStock); }
   }
 
-  document.querySelectorAll('[data-product-picker]').forEach(function (container) {
+  function initContainer(container) {
     var searchUrl = container.dataset.searchUrl;
     var warnOnOverstock = container.dataset.stockWarning === '1';
     if (!searchUrl) { return; }
+
     container.querySelectorAll('.combo').forEach(function (combo) {
+      // Marked so rows added later can be wired up without re-binding every
+      // handler on the rows that are already working.
+      if (combo.dataset.pickerReady === '1') { return; }
+      combo.dataset.pickerReady = '1';
       initCombo(combo, searchUrl, warnOnOverstock);
     });
-  });
+  }
+
+  function refresh() {
+    document.querySelectorAll('[data-product-picker]').forEach(initContainer);
+  }
+
+  // Exposed so the "add row" button can wire up the row it just created.
+  window.AlphaCueProductPicker = {refresh: refresh};
+
+  refresh();
 })();
 </script>

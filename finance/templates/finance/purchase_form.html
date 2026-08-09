@@ -39,6 +39,32 @@
   </div>
 
   <div class="card">
+    <div class="card-head">
+      <span class="card-title">Paying the supplier</span>
+      <span class="muted" style="font-size:.78rem">Optional — leave blank to record it as owed</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid" style="max-width:none">
+        <div class="form-row">
+          {% include 'finance/partials/field.html' with field=form.paid_from %}
+          {% include 'finance/partials/field.html' with field=form.amount_paid %}
+        </div>
+      </div>
+      <p class="muted" style="font-size:.83rem;line-height:1.7;margin-top:.9rem">
+        A purchase records what you owe the supplier. Filling these in also takes
+        the money out of the account you name, in one step — which is how importing
+        usually goes, since you pay before the goods ship. A part payment is fine;
+        the rest stays as owed. Leave both blank and pay later from
+        <strong>Payments → Pay supplier</strong>.
+      </p>
+    </div>
+  </div>
+
+  {% if money_accounts %}
+    {% include 'finance/partials/money_strip.html' %}
+  {% endif %}
+
+  <div class="card">
     <div class="card-head"><span class="card-title">Stage 2 — on arrival</span>
       <span class="muted" style="font-size:.78rem">Leave at zero until the shipment lands</span>
     </div>
@@ -64,7 +90,7 @@
         <a href="{% url 'finance:product_create' %}">add a new product</a>
       </span>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap" data-formset-prefix="{{ formset.prefix }}">
       {{ formset.management_form }}
       <table class="data-table" data-product-picker
              data-search-url="{% url 'finance:product_search' %}">
@@ -77,31 +103,84 @@
             <th style="width:70px">Remove</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-formset-body>
           {% for item_form in formset %}
             <tr>
               {{ item_form.id }}
               <td class="combo">
                 {{ item_form.variant }}
-                <input type="text" class="form-input product-search" autocomplete="off"
-                       placeholder="Search by name or SKU…"
-                       value="{{ item_form.variant_label }}">
-                <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                <div class="combo-input">
+                  <input type="text" class="form-input product-search" autocomplete="off"
+                         placeholder="Search by name or SKU…"
+                         value="{{ item_form.variant_label }}">
+                  <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                </div>
                 <div class="combo-panel"></div>
                 {% for error in item_form.variant.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
               </td>
-              <td>{{ item_form.quantity }}</td>
-              <td>{{ item_form.unit_price_rmb }}</td>
-              <td>{{ item_form.domestic_shipping_rmb }}</td>
-              <td>{{ item_form.unit_cost_bdt }}</td>
-              <td>{{ item_form.local_transport_bdt }}</td>
-              <td>{{ item_form.entered_weight_kg }}</td>
-              <td>{{ item_form.per_kg_charge_bdt }}</td>
+              <td>
+                {{ item_form.quantity }}
+                {% for error in item_form.quantity.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.unit_price_rmb }}
+                {% for error in item_form.unit_price_rmb.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.domestic_shipping_rmb }}
+                {% for error in item_form.domestic_shipping_rmb.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.unit_cost_bdt }}
+                {% for error in item_form.unit_cost_bdt.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.local_transport_bdt }}
+                {% for error in item_form.local_transport_bdt.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.entered_weight_kg }}
+                {% for error in item_form.entered_weight_kg.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
+              <td>
+                {{ item_form.per_kg_charge_bdt }}
+                {% for error in item_form.per_kg_charge_bdt.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </td>
               <td style="text-align:center">{% if item_form.instance.pk %}{{ item_form.DELETE }}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
+
+      <template data-formset-template>
+        <tr>
+          {{ formset.empty_form.id }}
+          <td class="combo">
+            {{ formset.empty_form.variant }}
+            <div class="combo-input">
+              <input type="text" class="form-input product-search" autocomplete="off"
+                     placeholder="Search by name or SKU…">
+              <button type="button" class="combo-clear" title="Clear product">&times;</button>
+            </div>
+            <div class="combo-panel"></div>
+          </td>
+          <td>{{ formset.empty_form.quantity }}</td>
+          <td>{{ formset.empty_form.unit_price_rmb }}</td>
+          <td>{{ formset.empty_form.domestic_shipping_rmb }}</td>
+          <td>{{ formset.empty_form.unit_cost_bdt }}</td>
+          <td>{{ formset.empty_form.local_transport_bdt }}</td>
+          <td>{{ formset.empty_form.entered_weight_kg }}</td>
+          <td>{{ formset.empty_form.per_kg_charge_bdt }}</td>
+          <td style="text-align:center">
+            <button type="button" data-clear-row class="btn btn-ghost"
+                    style="padding:.3rem .6rem" title="Clear this row">&times;</button>
+          </td>
+        </tr>
+      </template>
+
+      <div style="padding:.9rem 1.25rem;border-top:1px solid #F0EDE8">
+        <button type="button" data-add-row class="btn btn-ghost">+ Add another product</button>
+      </div>
     </div>
     <div class="card-body">
       <p class="muted" style="font-size:.8rem;line-height:1.6">
@@ -127,4 +206,5 @@
 
 {% block extra_js %}
 {% include 'finance/partials/product_picker.html' %}
+{% include 'finance/partials/formset_add_row.html' %}
 {% endblock %}

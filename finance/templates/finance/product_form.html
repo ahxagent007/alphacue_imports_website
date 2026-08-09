@@ -49,7 +49,7 @@
       <span class="card-title">Options</span>
       <span class="muted" style="font-size:.78rem">Leave a row's name blank to skip it</span>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap" data-formset-prefix="{{ formset.prefix }}">
       {{ formset.management_form }}
       <table class="data-table">
         <thead>
@@ -63,7 +63,7 @@
             <th style="width:70px">Remove</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-formset-body>
           {% for variant_form in formset %}
             <tr>
               {{ variant_form.id }}
@@ -94,6 +94,26 @@
           {% endfor %}
         </tbody>
       </table>
+
+      <template data-formset-template>
+        <tr>
+          {{ formset.empty_form.id }}
+          <td>{{ formset.empty_form.name }}</td>
+          <td>{{ formset.empty_form.sku }}</td>
+          <td>{{ formset.empty_form.price }}</td>
+          <td>{{ formset.empty_form.compare_price }}</td>
+          <td style="text-align:center">{{ formset.empty_form.track_stock }}</td>
+          <td style="text-align:center">{{ formset.empty_form.is_active }}</td>
+          <td style="text-align:center">
+            <button type="button" data-clear-row class="btn btn-ghost"
+                    style="padding:.3rem .6rem" title="Clear this row">&times;</button>
+          </td>
+        </tr>
+      </template>
+
+      <div style="padding:.9rem 1.25rem;border-top:1px solid #F0EDE8">
+        <button type="button" data-add-row class="btn btn-ghost">+ Add another option</button>
+      </div>
     </div>
     <div class="card-body">
       <p class="muted" style="font-size:.8rem;line-height:1.7">
@@ -129,4 +149,8 @@
     </div>
   </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% include 'finance/partials/formset_add_row.html' %}
 {% endblock %}

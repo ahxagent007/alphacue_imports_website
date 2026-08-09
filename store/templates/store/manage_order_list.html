@@ -25,6 +25,17 @@
   .pagination{display:flex;gap:.4rem;justify-content:center;margin-top:1.5rem;flex-wrap:wrap}
   .page-btn{padding:.4rem .8rem;border:1px solid var(--page-border);border-radius:6px;font-size:.8rem;color:#5A5450;background:#fff;cursor:pointer;text-decoration:none;transition:all .15s}
   .page-btn:hover,.page-btn.active{background:var(--gold-d);color:#fff;border-color:var(--gold-d)}
+  /* Eight columns never fit a phone — scroll the table, not the page. */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--page-border);border-radius:10px;background:#fff}
+  .table-wrap .order-table{border:none;border-radius:0}
+  @media(max-width:768px){
+    .order-table{min-width:760px}
+    .order-table th,.order-table td{padding:.65rem .75rem}
+    .filter-bar{padding:.85rem .9rem;gap:.6rem}
+    .filter-input,.filter-select{flex:1 1 100%;min-width:0}
+    .stat-card{padding:.85rem .9rem}
+    .stat-num{font-size:1.3rem}
+  }
 </style>
 {% endblock %}
 
@@ -88,6 +99,7 @@
 
   <!-- Table -->
   {% if page_obj %}
+  <div class="table-wrap">
   <table class="order-table">
     <thead>
       <tr>
@@ -143,6 +155,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
   <!-- Pagination -->
   {% if page_obj.has_other_pages %}

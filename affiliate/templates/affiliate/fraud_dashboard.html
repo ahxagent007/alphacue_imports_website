@@ -90,85 +90,87 @@
 <!-- Flags table -->
 <div class="section-card">
   {% if page_obj %}
-  <table class="flag-table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Affiliate</th>
-        <th>Reason</th>
-        <th>Details</th>
-        <th>Order #</th>
-        <th>IP</th>
-        <th>Flagged</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for flag in page_obj %}
-      <tr>
-        <td style="color:#9A9188;font-size:.75rem;">{{ flag.pk }}</td>
-        <td>
-          <div style="font-weight:700;font-size:.83rem;color:var(--gold-d);">{{ flag.affiliate.referral_code }}</div>
-          <div style="font-size:.72rem;color:#9A9188;">{{ flag.affiliate.full_name }}</div>
-          {% if flag.affiliate.is_fraud_flagged %}
-          <span style="font-size:.65rem;background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444;padding:.1rem .4rem;border-radius:4px;margin-top:.2rem;display:inline-block;">FLAGGED</span>
-          {% endif %}
-        </td>
-        <td><span class="reason-pill r-{{ flag.reason }}">{{ flag.get_reason_display }}</span></td>
-        <td style="font-size:.78rem;color:#5A5450;max-width:220px;">{{ flag.details }}</td>
-        <td style="font-size:.78rem;color:#5A5450;">
-          {% if flag.order_id %}#{{ flag.order_id }}{% else %}—{% endif %}
-        </td>
-        <td style="font-size:.75rem;color:#9A9188;font-family:monospace;">
-          {{ flag.ip_address|default:"—" }}
-        </td>
-        <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ flag.flagged_at|date:"d M Y" }}</td>
-        <td>
-          {% if flag.is_resolved %}
-            <span style="font-size:.72rem;color:#065F46;font-weight:700;">✓ Resolved</span>
-            <div style="font-size:.68rem;color:#9A9188;">by {{ flag.resolved_by.username|default:"—" }}</div>
-          {% else %}
-            <span style="font-size:.72rem;color:#991B1B;font-weight:700;">⚠ Open</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if not flag.is_resolved %}
-          <form method="post" action="{% url 'affiliate:resolve_flag' flag.pk %}" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit" class="resolve-btn" onclick="return confirm('Resolve this flag?')">
-              Resolve
-            </button>
-          </form>
-          {% endif %}
-          {% if not flag.affiliate.is_fraud_flagged %}
-          <form method="post" action="{% url 'affiliate:flag_affiliate' flag.affiliate.pk %}" style="display:inline;margin-left:.3rem;">
-            {% csrf_token %}
-            <input type="hidden" name="details" value="Flagged via fraud dashboard review">
-            <button type="submit" style="background:transparent;border:1px solid #EF4444;color:#991B1B;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;font-family:'Inter',sans-serif;" onclick="return confirm('Flag this affiliate account?')">
-              Flag
-            </button>
-          </form>
-          {% else %}
-          <form method="post" action="{% url 'affiliate:clear_affiliate' flag.affiliate.pk %}" style="display:inline;margin-left:.3rem;">
-            {% csrf_token %}
-            <button type="submit" style="background:transparent;border:1px solid #10B981;color:#065F46;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;font-family:'Inter',sans-serif;" onclick="return confirm('Clear fraud flag for this affiliate?')">
-              Clear
-            </button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="9" style="text-align:center;padding:3rem;color:#9A9188;">
-          <div style="font-size:2rem;margin-bottom:.75rem;">🛡️</div>
-          No fraud flags found.
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table class="flag-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Affiliate</th>
+          <th>Reason</th>
+          <th>Details</th>
+          <th>Order #</th>
+          <th>IP</th>
+          <th>Flagged</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for flag in page_obj %}
+        <tr>
+          <td style="color:#9A9188;font-size:.75rem;">{{ flag.pk }}</td>
+          <td>
+            <div style="font-weight:700;font-size:.83rem;color:var(--gold-d);">{{ flag.affiliate.referral_code }}</div>
+            <div style="font-size:.72rem;color:#9A9188;">{{ flag.affiliate.full_name }}</div>
+            {% if flag.affiliate.is_fraud_flagged %}
+            <span style="font-size:.65rem;background:rgba(239,68,68,.1);color:#991B1B;border:1px solid #EF4444;padding:.1rem .4rem;border-radius:4px;margin-top:.2rem;display:inline-block;">FLAGGED</span>
+            {% endif %}
+          </td>
+          <td><span class="reason-pill r-{{ flag.reason }}">{{ flag.get_reason_display }}</span></td>
+          <td style="font-size:.78rem;color:#5A5450;max-width:220px;">{{ flag.details }}</td>
+          <td style="font-size:.78rem;color:#5A5450;">
+            {% if flag.order_id %}#{{ flag.order_id }}{% else %}—{% endif %}
+          </td>
+          <td style="font-size:.75rem;color:#9A9188;font-family:monospace;">
+            {{ flag.ip_address|default:"—" }}
+          </td>
+          <td style="font-size:.75rem;color:#9A9188;white-space:nowrap;">{{ flag.flagged_at|date:"d M Y" }}</td>
+          <td>
+            {% if flag.is_resolved %}
+              <span style="font-size:.72rem;color:#065F46;font-weight:700;">✓ Resolved</span>
+              <div style="font-size:.68rem;color:#9A9188;">by {{ flag.resolved_by.username|default:"—" }}</div>
+            {% else %}
+              <span style="font-size:.72rem;color:#991B1B;font-weight:700;">⚠ Open</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not flag.is_resolved %}
+            <form method="post" action="{% url 'affiliate:resolve_flag' flag.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="resolve-btn" onclick="return confirm('Resolve this flag?')">
+                Resolve
+              </button>
+            </form>
+            {% endif %}
+            {% if not flag.affiliate.is_fraud_flagged %}
+            <form method="post" action="{% url 'affiliate:flag_affiliate' flag.affiliate.pk %}" style="display:inline;margin-left:.3rem;">
+              {% csrf_token %}
+              <input type="hidden" name="details" value="Flagged via fraud dashboard review">
+              <button type="submit" style="background:transparent;border:1px solid #EF4444;color:#991B1B;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;font-family:'Inter',sans-serif;" onclick="return confirm('Flag this affiliate account?')">
+                Flag
+              </button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'affiliate:clear_affiliate' flag.affiliate.pk %}" style="display:inline;margin-left:.3rem;">
+              {% csrf_token %}
+              <button type="submit" style="background:transparent;border:1px solid #10B981;color:#065F46;border-radius:5px;font-size:.72rem;font-weight:700;padding:.3rem .65rem;cursor:pointer;font-family:'Inter',sans-serif;" onclick="return confirm('Clear fraud flag for this affiliate?')">
+                Clear
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align:center;padding:3rem;color:#9A9188;">
+            <div style="font-size:2rem;margin-bottom:.75rem;">🛡️</div>
+            No fraud flags found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {% if page_obj.has_other_pages %}
   <div style="display:flex;gap:.4rem;justify-content:center;padding:1rem;flex-wrap:wrap;">
