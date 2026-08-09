@@ -78,6 +78,12 @@ clears the row instead — a blank row is skipped on save anyway.
         window.AlphaCueProductPicker.refresh();
       }
 
+      // Without this the new row has no column labels, so on a phone it would
+      // stack as a column of unidentified inputs.
+      if (window.AlphaCueTables) {
+        window.AlphaCueTables.refresh();
+      }
+
       var remove = row.querySelector('[data-clear-row]');
       if (remove) {
         remove.addEventListener('click', function () { clearRow(row); });

@@ -58,10 +58,12 @@
               {{ item_form.id }}
               <td class="combo">
                 {{ item_form.variant }}
-                <input type="text" class="form-input product-search" autocomplete="off"
-                       placeholder="Search by name or SKU…"
-                       value="{{ item_form.variant_label }}">
-                <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                <div class="combo-input">
+                  <input type="text" class="form-input product-search" autocomplete="off"
+                         placeholder="Search by name or SKU…"
+                         value="{{ item_form.variant_label }}">
+                  <button type="button" class="combo-clear" title="Clear product">&times;</button>
+                </div>
                 <div class="combo-panel"></div>
                 <div class="line-warn"></div>
                 {% for error in item_form.variant.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
@@ -98,9 +100,11 @@
           {{ formset.empty_form.id }}
           <td class="combo">
             {{ formset.empty_form.variant }}
-            <input type="text" class="form-input product-search" autocomplete="off"
-                   placeholder="Search by name or SKU…">
-            <button type="button" class="combo-clear" title="Clear product">&times;</button>
+            <div class="combo-input">
+              <input type="text" class="form-input product-search" autocomplete="off"
+                     placeholder="Search by name or SKU…">
+              <button type="button" class="combo-clear" title="Clear product">&times;</button>
+            </div>
             <div class="combo-panel"></div>
             <div class="line-warn"></div>
           </td>

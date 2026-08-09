@@ -37,7 +37,9 @@
     .sidebar-link .icon{font-size:.95rem;width:18px;text-align:center;flex-shrink:0}
     .sidebar-soon{font-size:.6rem;color:var(--text-d);margin-left:auto;letter-spacing:.04em}
 
-    .admin-main{flex:1;overflow-y:auto;padding:1.75rem}
+    /* min-width:0 stops a wide table from stretching this flex child past the
+       viewport, which used to make the whole page scroll sideways. */
+    .admin-main{flex:1;min-width:0;overflow-y:auto;padding:1.75rem}
     .page-head{margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
     .page-head h1{font-family:'Cinzel',serif;font-size:1.25rem;font-weight:700;color:#1A1208}
     .page-head p{font-size:.85rem;color:#5A5450;margin-top:.2rem}
@@ -144,6 +146,10 @@
     .combo-stock.low{color:#92600A}
     .combo-stock.out{color:#991B1B}
     .combo-hint{padding:.7rem;font-size:.79rem;color:#9A9188;text-align:center}
+    /* The clear button is centred on the input, not on the cell: once the cell
+       stacks on a phone it also holds a label and a warning, and anchoring to
+       the cell dropped the × somewhere below the field. */
+    .combo-input{position:relative;display:block}
     .combo-clear{position:absolute;right:.5rem;top:50%;transform:translateY(-50%);border:none;background:none;color:#9A9188;cursor:pointer;font-size:1rem;line-height:1;padding:.2rem;display:none}
     .combo.has-value .combo-clear{display:block}
     .line-warn{font-size:.71rem;color:#991B1B;font-weight:600;margin-top:.25rem;display:none}
@@ -204,10 +210,158 @@
       .form-grid{max-width:none}
       .form-actions .btn{flex:1 1 auto;justify-content:center}
     }
+    /* ── Mobile: tables become stacked cards ──
+       Finance tables run 6–9 columns wide. Left as tables on a phone they were
+       a sideways scroll that hid exactly the numbers people open the page for.
+       The script at the foot of this file copies each <th> into a `data-label`
+       on the cells beneath it, so a row can be redrawn as a label/value card
+       without editing a single page template. Tables with no <thead> — the
+       short explanatory ones on the account and transfer forms — are skipped
+       and stay as tables.
+
+       These two helpers are hidden on desktop: the script injects them
+       unconditionally, and only the mobile block below gives them a display. */
+    .stack-carry{display:none}
+    .filter-toggle{display:none}
+
+    @media(max-width:768px){
+      .data-table.stackable{display:block;width:100%}
+      .data-table.stackable thead{display:none}
+      .data-table.stackable tbody,.data-table.stackable tfoot{display:block}
+      .table-wrap.has-stackable{overflow:visible;padding:.7rem .75rem}
+
+      .data-table.stackable tbody tr{
+        display:block;background:#FCFBF9;border:1px solid #EDE9E1;
+        border-radius:var(--radius);padding:0 .8rem .2rem;margin-bottom:.6rem}
+      .data-table.stackable tbody tr:last-child{margin-bottom:0}
+      .data-table.stackable tbody tr:hover td{background:transparent}
+
+      /* Separators sit on the top edge, so hiding a trailing cell can never
+         leave a rule hanging under the last visible one. */
+      .data-table.stackable td{
+        display:flex;align-items:baseline;justify-content:space-between;
+        gap:.9rem;padding:.5rem 0;border-bottom:none;
+        border-top:1px dashed #F0EDE8;text-align:right}
+      .data-table.stackable tbody tr > td:first-child{border-top:none}
+      .data-table.stackable td::before{
+        content:attr(data-label);flex:0 1 auto;min-width:0;text-align:left;
+        font-size:.64rem;font-weight:700;letter-spacing:.06em;
+        text-transform:uppercase;color:#9A9188}
+      /* Unlabelled columns are the action columns — let the button sit right. */
+      .data-table.stackable td[data-label=""]{justify-content:flex-end}
+      .data-table.stackable td[data-label=""]::before{content:none}
+
+      /* The first column is the row's subject, so it reads as the card title. */
+      .data-table.stackable td[data-primary]{
+        display:block;text-align:left;font-size:.9rem;padding-top:.7rem}
+      .data-table.stackable td[data-primary]::before{display:block;margin-bottom:.2rem}
+
+      /* A cell spanning the whole table is an empty state or a note, never a value. */
+      .data-table.stackable td[data-fullrow]{display:block;text-align:left}
+      .data-table.stackable td[data-fullrow]::before{content:none}
+      .data-table.stackable tr.stack-blank{
+        background:transparent;border:none;padding:0;margin:0}
+      .data-table.stackable tr.stack-blank td{padding:0;border:none}
+
+      /* A rowspan cell renders only on the group's first row, which left every
+         later card with no idea which product it belonged to. The script
+         repeats it here as a heading. */
+      .data-table.stackable td.stack-carry{
+        display:block;text-align:left;font-size:.9rem;padding:.7rem 0 .5rem;
+        border:none}
+      .data-table.stackable td.stack-carry::before{content:none}
+
+      /* Totals rows: label left, figure right, no card. */
+      .data-table.stackable tfoot tr{
+        display:flex;align-items:baseline;justify-content:space-between;gap:1rem;
+        padding:.5rem .8rem;border-bottom:1px solid #F2EFEA}
+      .data-table.stackable tfoot tr:last-child{border-bottom:none}
+      .data-table.stackable tfoot td{display:block;padding:0;border:none;text-align:right}
+      .data-table.stackable tfoot td::before{content:none}
+      .data-table.stackable tfoot td[colspan]{text-align:left}
+
+      /* A totals row that carries a figure per column becomes its own card. */
+      .data-table.stackable tfoot tr.stack-total{
+        display:block;padding:0 .8rem .3rem;margin-top:.6rem;
+        border:1px solid #EDE9E1;border-radius:var(--radius);background:#FAF8F4}
+      .data-table.stackable tfoot tr.stack-total td{
+        display:flex;align-items:baseline;justify-content:space-between;gap:.9rem;
+        padding:.5rem 0;text-align:right;border-top:1px dashed #EDE9E1}
+      .data-table.stackable tfoot tr.stack-total td::before{
+        content:attr(data-label);flex:0 1 auto;min-width:0;text-align:left;
+        font-size:.64rem;font-weight:700;letter-spacing:.06em;
+        text-transform:uppercase;color:#9A9188}
+      .data-table.stackable tfoot tr.stack-total td[data-primary]{
+        display:block;text-align:left;border-top:none;padding-top:.7rem}
+      .data-table.stackable tfoot tr.stack-total td[data-primary]::before{content:none}
+
+      /* Line-item editors: label above the field, numbers two-up. */
+      .data-table.stackable tbody{counter-reset:stackrow}
+      .data-table.stackable tbody tr.stack-fields{
+        display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem;
+        padding:0 .8rem .8rem;counter-increment:stackrow}
+      .data-table.stackable tr.stack-fields::before{
+        content:'Line ' counter(stackrow);grid-column:1/-1;padding-top:.65rem;
+        font-size:.62rem;font-weight:700;letter-spacing:.08em;
+        text-transform:uppercase;color:#BDB5A9}
+      .data-table.stackable tr.stack-fields td{
+        display:block;text-align:left;border:none;padding:.55rem 0 0}
+      .data-table.stackable tr.stack-fields td::before{display:block;margin-bottom:.25rem}
+      .data-table.stackable tr.stack-fields td[data-span]{grid-column:1/-1}
+      .data-table.stackable tr.stack-fields .form-input{width:100%}
+      /* Right-aligned digits read as a mistake once the field is full width. */
+      .data-table.stackable input[type="number"]{text-align:left;padding:.6rem .75rem}
+
+      /* Last, so it outranks the row-level display rules above: a cell with
+         nothing in it is a blank line on a phone, never an empty table cell. */
+      .data-table.stackable tbody tr td[data-empty]{display:none}
+      .combo-panel{max-height:min(58vh,320px)}
+
+      /* ── Collapsible filters ──
+         Search plus two selects pushed the actual results a screen and a half
+         down. The bar starts closed unless a filter is already applied. */
+      .filter-toggle{
+        display:flex;width:100%;align-items:center;justify-content:space-between;
+        gap:.6rem;background:#fff;border:1px solid #E8E4DC;border-radius:var(--radius);
+        padding:.75rem .95rem;margin-bottom:1.1rem;font-family:'Inter',sans-serif;
+        font-size:.82rem;font-weight:600;color:#5A5450;cursor:pointer;min-height:44px}
+      .filter-toggle[aria-expanded="true"]{
+        margin-bottom:.5rem;border-color:var(--gold-d);color:var(--gold-d)}
+      .filter-toggle .chev{transition:transform .2s;font-size:.7rem}
+      .filter-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+      .filter-bar.collapsed{display:none}
+      .filter-bar .btn{flex:1 1 auto;justify-content:center}
+
+      /* ── Touch and text sizing ──
+         16px is the threshold below which iOS Safari zooms the page on focus,
+         which then left the form scrolled off to one side. */
+      .form-input{font-size:16px;padding:.65rem .8rem}
+      .btn{min-height:38px;padding:.45rem 1rem}
+      .btn-lg{min-height:44px;padding:.6rem 1.2rem}
+
+      /* Header actions get a row of their own rather than crowding the title. */
+      .page-head > div + div{width:100%}
+      .page-head > div + div .btn{flex:1 1 auto;justify-content:center}
+
+      .admin-header{
+        padding-left:max(.85rem,env(safe-area-inset-left));
+        padding-right:max(.85rem,env(safe-area-inset-right))}
+      .admin-main{padding-bottom:calc(2rem + env(safe-area-inset-bottom))}
+      .sidebar{padding-bottom:calc(2rem + env(safe-area-inset-bottom))}
+
+      .card{margin-bottom:1rem}
+      .alert{font-size:.8rem;padding:.7rem .85rem}
+      .crumb{font-size:.75rem}
+      .empty-state{padding:2rem 1rem}
+      .code-ref{overflow-wrap:anywhere}
+      .table-wrap{-webkit-overflow-scrolling:touch}
+    }
+
     /* Very small phones only: 2-up stat cards still fit at 360px+ */
     @media(max-width:359px){
       .admin-brand span{display:none}
       .stat-row{grid-template-columns:1fr}
+      .data-table.stackable tbody tr.stack-fields{grid-template-columns:1fr}
     }
   </style>
   {% block extra_head %}{% endblock %}
@@ -384,6 +538,175 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
   window.addEventListener('resize', function () { if (window.innerWidth > 768) close(); });
   sidebar.addEventListener('click', function (e) { if (e.target.closest('a')) close(); });
+})();
+
+/* Label every data cell with its column heading so the CSS above can redraw
+   the table as one card per row on a phone. Nothing here changes the desktop
+   layout — it only writes attributes the mobile media query reads.
+
+   Re-runnable: rows added later (the line-item "add another row" button) are
+   picked up by window.AlphaCueTables.refresh(). */
+(function () {
+  'use strict';
+
+  /* Header text per *column*, so a colspan in the header still lines up. */
+  function headerLabels(table) {
+    var head = table.tHead, row, labels = [], i, span;
+    if (!head || !head.rows.length) { return null; }
+    row = head.rows[head.rows.length - 1];
+    for (i = 0; i < row.cells.length; i++) {
+      span = row.cells[i].colSpan || 1;
+      while (span--) { labels.push((row.cells[i].textContent || '').trim()); }
+    }
+    return labels;
+  }
+
+  /* Number inputs are short enough to sit two to a line; anything the user
+     types words into gets the full width. */
+  function fieldKind(td) {
+    var field = td.querySelector('input:not([type="hidden"]),select,textarea');
+    if (!field) { return null; }
+    if (field.tagName === 'INPUT' && (field.type || '').toLowerCase() === 'number') {
+      return 'narrow';
+    }
+    return 'wide';
+  }
+
+  function enhance(table) {
+    if (table.classList.contains('no-stack')) { return; }
+
+    var labels = headerLabels(table);
+    if (!labels || labels.length < 2) { return; }
+
+    var body = table.tBodies[0];
+    if (!body) { return; }
+
+    var cols = labels.length;
+    var wrap = table.closest('.table-wrap');
+    var carries = [];      // rowspan cells still reaching into later rows
+
+    table.classList.add('stackable');
+    if (wrap) { wrap.classList.add('has-stackable'); }
+
+    Array.prototype.forEach.call(body.rows, function (tr) {
+      var occupied = {}, carried = null, col = 0, cells, i, td, span, kind, lead;
+
+      carries = carries.filter(function (c) { return c.left > 0; });
+      carries.forEach(function (c) {
+        for (var n = 0; n < c.span; n++) { occupied[c.col + n] = c; }
+        c.left -= 1;
+      });
+
+      // Headings this script added on a previous run are not real columns.
+      cells = Array.prototype.filter.call(tr.cells, function (cell) {
+        return !cell.classList.contains('stack-carry');
+      });
+
+      for (i = 0; i < cells.length; i++) {
+        while (occupied[col]) {
+          if (occupied[col].col === 0) { carried = occupied[col]; }
+          col += occupied[col].span;
+        }
+
+        td = cells[i];
+        span = td.colSpan || 1;
+
+        td.setAttribute('data-label', labels[col] || '');
+        if (col === 0) { td.setAttribute('data-primary', ''); }
+        if (span >= cols) { td.setAttribute('data-fullrow', ''); }
+
+        kind = fieldKind(td);
+        if (kind) {
+          td.setAttribute('data-field', '');
+          if (kind === 'wide') { td.setAttribute('data-span', ''); }
+        }
+
+        // A blank cell is invisible in a table but becomes a labelled empty
+        // line once stacked — e.g. "Remove" on a purchase that has no saved
+        // rows to remove yet.
+        if (!kind && !td.textContent.trim() &&
+            !td.querySelector('a,button,img,svg,input')) {
+          td.setAttribute('data-empty', '');
+        } else {
+          td.removeAttribute('data-empty');
+        }
+
+        if ((td.rowSpan || 1) > 1) {
+          carries.push({col: col, span: span, left: td.rowSpan - 1, cell: td});
+        }
+        col += span;
+      }
+
+      if (carried && !tr.querySelector('.stack-carry')) {
+        lead = document.createElement('td');
+        lead.className = 'stack-carry';
+        lead.innerHTML = carried.cell.innerHTML;
+        tr.insertBefore(lead, tr.firstChild);
+      }
+
+      // A lone full-width cell is an empty state — it should not look like a row.
+      if (cells.length === 1 && cells[0].hasAttribute('data-fullrow')) {
+        tr.classList.add('stack-blank');
+      }
+      if (tr.querySelector('[data-field]')) { tr.classList.add('stack-fields'); }
+    });
+
+    // Totals rows. "Subtotal — ৳x" is a plain two-cell row, but a report like
+    // the ageing table totals every column, and six figures side by side ran
+    // straight off the screen. Those get labelled and stacked like a card.
+    if (table.tFoot) {
+      Array.prototype.forEach.call(table.tFoot.rows, function (tr) {
+        var col = 0;
+        Array.prototype.forEach.call(tr.cells, function (td) {
+          td.setAttribute('data-label', labels[col] || '');
+          if (col === 0) { td.setAttribute('data-primary', ''); }
+          col += td.colSpan || 1;
+        });
+        if (tr.cells.length > 2) { tr.classList.add('stack-total'); }
+      });
+    }
+  }
+
+  function refresh() {
+    Array.prototype.forEach.call(
+      document.querySelectorAll('table.data-table'), enhance);
+  }
+
+  window.AlphaCueTables = {refresh: refresh};
+  refresh();
+})();
+
+/* Filter bars fold away on a phone. Three stacked fields pushed the results
+   themselves below the fold; a bar that already has a filter applied stays
+   open so the state is never hidden. */
+(function () {
+  'use strict';
+
+  Array.prototype.forEach.call(document.querySelectorAll('.filter-bar'), function (bar) {
+    var applied = false, toggle;
+
+    Array.prototype.forEach.call(bar.querySelectorAll('input,select'), function (field) {
+      var type = (field.type || '').toLowerCase();
+      if (type === 'hidden' || type === 'submit' || type === 'button') { return; }
+      if (field.value && field.value.trim() !== '') { applied = true; }
+    });
+
+    toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'filter-toggle';
+    toggle.setAttribute('aria-expanded', applied ? 'true' : 'false');
+    toggle.innerHTML =
+      '<span>' + (applied ? 'Search &amp; filter · on' : 'Search &amp; filter') + '</span>' +
+      '<span class="chev" aria-hidden="true">▼</span>';
+
+    bar.parentNode.insertBefore(toggle, bar);
+    if (!applied) { bar.classList.add('collapsed'); }
+
+    toggle.addEventListener('click', function () {
+      var open = !bar.classList.toggle('collapsed');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
 })();
 </script>
 {% block extra_js %}{% endblock %}
